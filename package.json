@@ -1,0 +1,9 @@
+{
+  "name": "gym",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --experimental-test-coverage --test-coverage-exclude=tests/** tests/*.test.js",
+    "build": "node tools/build-sw.js"
+  }
+}

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1A16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Мой зал">
+<meta name="description" content="Тренировки на тренажёрах моего зала: подходы, таймер отдыха, прогресс.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<title>Мой зал</title>
+</head>
+<body>
+<div id="app">
+<main>
+  <div class="warn" id="warn">Браузер не даёт сохранять данные — записи пропадут после закрытия. Открой приложение с экрана «Домой» не в режиме «Частный доступ».</div>
+  <section class="view on" id="v-home"></section>
+  <section class="view" id="v-train"></section>
+  <section class="view" id="v-prog"></section>
+  <section class="view" id="v-body"></section>
+</main>
+</div>
+
+<nav><div class="in">
+  <button data-v="home" class="on"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Сегодня</button>
+  <button data-v="train"><span class="ico" id="livedot"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></span>Тренировка</button>
+  <button data-v="prog"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 15l4-5 4 3 5-7"/></svg></span>Прогресс</button>
+  <button data-v="body"><span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8.5 10a5 5 0 0 1 7 0M12 10l1.8-2.2"/></svg></span>Тело</button>
+</div></nav>
+
+<div class="timer" id="timer" role="timer" aria-live="polite">
+  <div class="tring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="23" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/><circle id="tarc" cx="27" cy="27" r="23" fill="none" stroke="#F5C842" stroke-width="5" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="0"/></svg></div>
+  <div class="t"><small id="tlabel">Отдых</small><b class="n" id="tval">0:00</b></div>
+  <button id="tminus" aria-label="Минус 15 секунд">−15</button><button id="tplus" aria-label="Плюс 15 секунд">+15</button><button class="go" id="tstop">Готов</button>
+</div>
+
+<div class="ov" id="sheetov"><div class="sheet" id="sheet"></div></div>
+<div id="photov"></div>
+
+<div class="done-ov" id="doneov"><canvas id="conf"></canvas><div class="in">
+  <svg class="badge" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="#1D3329" stroke-width="6"/><circle class="r" cx="50" cy="50" r="45" fill="none" stroke="#F5C842" stroke-width="6" stroke-linecap="round" transform="rotate(-90 50 50)"/><path d="M32 51l12 12 24-26" fill="none" stroke="#F5C842" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h1 id="d-title"></h1>
+  <p class="sub" id="d-sub"></p>
+  <div class="g2" id="d-stats"></div>
+  <div class="hl" id="d-hl"></div>
+  <details class="chat"><summary>Отчёт для Claude</summary><pre id="d-txt"></pre></details>
+  <button class="btn" id="d-copy" style="margin-top:12px">Скопировать отчёт</button>
+  <button class="btn s2" id="d-backup" style="margin-top:8px;display:none">Сохранить резервную копию</button>
+  <button class="btn s2" id="d-close" style="margin-top:8px">Готово</button>
+  <button class="textbtn" id="d-undo">Отменить сохранение</button>
+</div></div>
+
+<div id="crash" role="alert"><h2>Что-то сломалось</h2><p>Твои данные не удалены. Сохрани их файлом и перезапусти приложение.</p><pre></pre><button class="btn" id="crash-save">Сохранить данные файлом</button><button class="btn s2" id="crash-reload">Перезапустить</button></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
