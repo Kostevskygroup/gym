@@ -394,10 +394,14 @@ textarea:focus{outline:none;border-color:var(--acc)}
 .er span{color:var(--mu);font-size:14px}
 .er button{margin-left:auto;width:40px;height:40px;border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center}
 .toast{white-space:normal;max-width:calc(100vw - 32px);display:flex;align-items:center;gap:12px;text-align:left}
-.toast.act{pointer-events:auto}
+.toast.act.on{pointer-events:auto}
+.toast{z-index:60}
 .toast button{background:var(--bg);color:var(--acc);border-radius:16px;padding:7px 12px;font-weight:800;font-size:14px;white-space:nowrap}
 #crash{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column;justify-content:center;padding:24px 20px;gap:12px}
 #crash.on{display:flex}
 #crash h2{font-family:var(--disp);font-size:26px}
 #crash p{color:var(--tx2)}
 #crash pre{font-size:11px;color:var(--mu);white-space:pre-wrap;max-height:30vh;overflow:auto;background:var(--s1);padding:10px;border-radius:10px}
+
+.noph{background:var(--s3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A3B8AD' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11'/%3E%3C/svg%3E") center/55% no-repeat;display:block}
+.pgh .noph{width:40px;height:40px;border-radius:10px}

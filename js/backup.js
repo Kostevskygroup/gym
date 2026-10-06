@@ -25,14 +25,25 @@ function normSession(s) {
   const entries = {};
   Object.entries(s.entries).forEach(([id, rows]) => {const r = normRows(rows); if (r.length) entries[id] = r;});
   const knee = s.knee === null || s.knee === undefined || s.knee === '' ? null : Math.min(10, Math.max(0, Math.round(n(s.knee)) || 0));
-  const id = Number.isFinite(+s.id) ? +s.id : Date.parse(s.date);
+  const id = (typeof s.id === 'number' || (typeof s.id === 'string' && s.id.trim())) && Number.isFinite(+s.id) && +s.id > 0 ? +s.id : Date.parse(s.date);
   const out = {id, date: new Date(s.date).toISOString(), phase: PHASES.includes(s.phase) ? s.phase : 'p1', wo: String(s.wo ?? ''), knee, entries, dur: Number.isFinite(+s.dur) && s.dur > 0 ? Math.min(600, Math.round(+s.dur)) : null};
   if (obj(s.swaps)) out.swaps = {...s.swaps};
   return out;
 }
 
 const byDate = (a, b) => Date.parse(a.date) - Date.parse(b.date);
-function uniqBy(arr, key) {const seen = new Set(); return arr.filter(x => {const k = key(x); if (seen.has(k)) return false; seen.add(k); return true;});}
+// Дубли (тот же id и та же дата) убираем; разные тренировки с одинаковым id сохраняем под новым id.
+function uniqSessions(arr) {
+  const byId = new Map(), out = [];
+  arr.forEach(s => {
+    const sig = s.date;
+    let id = s.id;
+    while (byId.has(id)) {if (byId.get(id) === sig) return; id++;}
+    byId.set(id, sig);
+    out.push(id === s.id ? s : {...s, id});
+  });
+  return out;
+}
 
 function normPlan(p) {
   if (!obj(p) || !PHASES.every(k => obj(p[k]) && obj(p[k].w))) return null;
@@ -54,7 +65,7 @@ function normCustom(c) {
   const out = {};
   if (!obj(c)) return out;
   Object.entries(c).forEach(([id, e]) => {
-    if (obj(e) && typeof e.n === 'string' && e.n.trim() && EQUIP[e.img] && TYPES.includes(e.t))
+    if (obj(e) && typeof e.n === 'string' && e.n.trim() && Object.prototype.hasOwnProperty.call(EQUIP, e.img) && TYPES.includes(e.t))
       out[id] = {n: e.n.trim().slice(0, 40), g: String(e.g || ''), img: e.img, t: e.t, setup: String(e.setup || ''), how: Array.isArray(e.how) ? e.how.map(String) : [], bad: Array.isArray(e.bad) ? e.bad.map(String) : [], own: 1};
   });
   return out;
@@ -72,7 +83,7 @@ function normExs(x) {
 // Любой вход → корректный db. Неизвестные упражнения в истории сохраняем.
 export function normalizeDB(raw) {
   const d = obj(raw) ? raw : {}, db = emptyDB();
-  db.sessions = uniqBy((Array.isArray(d.sessions) ? d.sessions : []).map(normSession).filter(Boolean), s => s.id).sort(byDate);
+  db.sessions = uniqSessions((Array.isArray(d.sessions) ? d.sessions : []).map(normSession).filter(Boolean)).sort(byDate);
   db.bw = (Array.isArray(d.bw) ? d.bw : []).filter(x => obj(x) && okDate(x.date) && inRange(n(x.kg), 30, 250)).map(x => ({date: x.date, kg: n(x.kg)})).sort(byDate);
   db.waist = (Array.isArray(d.waist) ? d.waist : []).filter(x => obj(x) && okDate(x.date) && inRange(n(x.v), 40, 200)).map(x => ({date: x.date, v: n(x.v)})).sort(byDate);
   db.goal = inRange(n(d.goal), 40, 200) ? n(d.goal) : null;
@@ -96,7 +107,13 @@ const okPhoto = p => obj(p) && typeof p.ex === 'string' && typeof p.data === 'st
 export function parseBackup(text) {
   let d;
   try {d = JSON.parse(String(text).trim());} catch (e) {throw new Error(NOT_BACKUP);}
-  const raw = obj(d) && d.app === 'gym' && obj(d.db) ? d.db : d;
+  let raw = obj(d) && d.app === 'gym' && obj(d.db) ? d.db : d;
+  // аварийный файл с экрана сбоя: сырые строки хранилища
+  if (obj(d) && !Array.isArray(d.sessions) && ['db', 'prev', 'legacy'].some(k => typeof d[k] === 'string')) {
+    for (const k of ['db', 'prev', 'legacy']) {
+      try {const x = JSON.parse(d[k]); if (obj(x) && Array.isArray(x.sessions)) {raw = x; break;}} catch (e) {}
+    }
+  }
   if (!obj(raw) || !Array.isArray(raw.sessions)) throw new Error(NOT_BACKUP);
   const photos = obj(d) && Array.isArray(d.photos) ? d.photos.filter(okPhoto).map(p => ({ex: p.ex, ts: +p.ts || 0, data: p.data, label: String(p.label || '')})) : [];
   return {db: normalizeDB(raw), photos};
@@ -104,7 +121,10 @@ export function parseBackup(text) {
 
 // Слияние: ничего не удаляет. Записи объединяются, настройки остаются свои.
 export function mergeDB(local, inc) {
-  if (isEmpty(local)) return {db: {...inc, lastBackup: local.lastBackup || inc.lastBackup}, added: {sessions: inc.sessions.length, bw: inc.bw.length, waist: inc.waist.length}};
+  if (isEmpty(local)) {
+    const db = {...inc, custom: {...inc.custom, ...local.custom}, exs: {...inc.exs, ...local.exs}, plan: local.plan || inc.plan, goal: local.goal ?? inc.goal, lastBackup: local.lastBackup || inc.lastBackup};
+    return {db, added: {sessions: inc.sessions.length, bw: inc.bw.length, waist: inc.waist.length}};
+  }
   const ids = new Set(local.sessions.map(s => s.id)), bwD = new Set(local.bw.map(x => x.date)), waD = new Set(local.waist.map(x => x.date));
   const newS = inc.sessions.filter(s => !ids.has(s.id)), newB = inc.bw.filter(x => !bwD.has(x.date)), newW = inc.waist.filter(x => !waD.has(x.date));
   const ach = {...inc.ach};

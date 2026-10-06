@@ -37,7 +37,7 @@ export const ACH = [
   ['knee', '0', '5 трен. ног без боли', st => {const l = legDays(st).slice(-5); return l.length >= 5 && l.every(s => s.knee <= 2);}],
   ['h1', '60′', 'Час в зале', st => st.S.some(s => (s.dur || 0) >= 60)],
   ['m12', '12', '12 трен. за месяц', st => st.last30 >= 12],
-  ['all', '★', 'Все тренажёры зала', st => {const u = usedEquip(st); return Object.keys(EQUIP).filter(hasPhoto).every(eq => u.has(eq));}],
+  ['all', '★', 'Все тренажёры зала', st => {const u = usedEquip(st); return Object.keys(EQUIP).filter(eq => hasPhoto(eq) && !EQUIP[eq].extra).every(eq => u.has(eq));}],
 ];
 
 // Возвращает новый объект достижений и названия только что полученных.

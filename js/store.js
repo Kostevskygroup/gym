@@ -5,7 +5,8 @@ import {normalizeDB, normalizeDR, emptyDB, emptyDraft} from './backup.js';
 const K = {db: 'gym.db', prev: 'gym.db.prev', dr: 'gym.draft', snap: 'gym.db.before-import'};
 const LEGACY = {db: 'gym-db', dr: 'gym-draft3'};
 
-export const state = {db: emptyDB(), dr: {}, ok: false, warn: null, saveFailed: false};
+export const state = {db: emptyDB(), dr: {}, ok: false, warn: null, saveFailed: false, memOnly: false};
+const failed = () => {state.saveFailed = true; try {dispatchEvent(new Event('gym:savefail'));} catch (e) {}};
 
 const LS = {
   get: k => {try {return localStorage.getItem(k);} catch (e) {return null;}},
@@ -33,6 +34,7 @@ export function load() {
     const prev = parse(K.prev);
     raw = prev && Array.isArray(prev.sessions) ? prev : null;
     state.warn = raw ? 'Данные были повреждены — восстановлена предыдущая версия.' : 'Данные повреждены. Сырая копия сохранена — восстанови из резервной копии.';
+    if (!raw) {LS.set(`${K.db}.corrupt.${Date.now()}`, LS.get(K.db) || ''); state.dr = normalizeDR(parse(K.dr)); state.ok = false; return;}
   }
   if (raw === null && !state.warn) {
     const old = parse(LEGACY.db);
@@ -42,18 +44,27 @@ export function load() {
   const dr = parse(K.dr) ?? parse(LEGACY.dr);
   state.dr = normalizeDR(dr);
   state.ok = true;
+  state.memOnly = !storageWorks();
+  LS.del(K.snap);
 }
 
 export function rawExport() {
-  return JSON.stringify({db: LS.get(K.db), prev: LS.get(K.prev), dr: LS.get(K.dr), legacy: LS.get(LEGACY.db)});
+  const corrupt = {};
+  try {Object.keys(localStorage).filter(k => k.includes('.corrupt.')).forEach(k => {corrupt[k] = LS.get(k);});} catch (e) {}
+  return JSON.stringify({db: LS.get(K.db), prev: LS.get(K.prev), dr: LS.get(K.dr), legacy: LS.get(LEGACY.db), corrupt});
 }
+// После повреждения обеих копий запись разрешается только явным действием — восстановлением.
+export const unlock = () => {state.ok = true;};
 
+// Показываем только то, что действительно сохранилось.
 export function setDB(next) {
-  state.db = {...next, updatedAt: Date.now()};
+  const cand = {...next, updatedAt: Date.now()};
   if (!state.ok) return false;
+  if (state.memOnly) {state.db = cand; failed(); return false;}
   const cur = LS.get(K.db);
   if (cur) LS.set(K.prev, cur);
-  const ok = LS.set(K.db, JSON.stringify(state.db));
+  const ok = LS.set(K.db, JSON.stringify(cand));
+  if (ok) state.db = cand; else failed();
   state.saveFailed = !ok;
   return ok;
 }
@@ -61,9 +72,9 @@ export const updDB = fn => setDB(fn(state.db));
 
 export function setDR(next) {
   state.dr = next;
-  if (!state.ok) return false;
+  if (!state.ok && !state.warn) return false;
   const ok = LS.set(K.dr, JSON.stringify(next));
-  if (!ok) state.saveFailed = true;
+  if (!ok) failed();
   return ok;
 }
 export const draft = k => state.dr[k] || emptyDraft();
@@ -71,7 +82,8 @@ export const patchDraft = (k, fn) => setDR({...state.dr, [k]: fn(draft(k))});
 export function dropDraft(k) {const {[k]: _, ...rest} = state.dr; return setDR(rest);}
 export const setRest = rest => {const {rest: _, ...d} = state.dr; return setDR(rest ? {...d, rest} : d);};
 
-export function snapshot() {return LS.set(K.snap, JSON.stringify(state.db));}
+export function snapshot() {LS.del(K.snap); return LS.set(K.snap, JSON.stringify(state.db));}
+export const dropSnapshot = () => LS.del(K.snap);
 export function undoSnapshot() {
   const raw = parse(K.snap);
   if (!raw) return false;

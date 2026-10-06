@@ -1,10 +1,10 @@
 // Экран «Тело»: вес, талия, цель и резервная копия.
 import {$, $$, toast, openSheet, closeSheet} from '../ui.js';
-import {state, updDB, setDB, snapshot, undoSnapshot, rawExport} from '../store.js';
+import {state, updDB, setDB, snapshot, undoSnapshot, rawExport, unlock, dropSnapshot} from '../store.js';
 import {stats, checkAch} from '../stats.js';
 import {parseBackup, mergeDB, makeBackup} from '../backup.js';
 import {exportPhotos, importPhotos} from '../photos.js';
-import {saveFile, pickFile, persistStorage} from '../platform.js';
+import {saveFile, pickFile, persistStorage, pendingUpdate} from '../platform.js';
 import {esc, fmtD, r1, plural, ymd, num, DAY} from '../format.js';
 import {chart} from './chart.js';
 
@@ -41,13 +41,16 @@ function backupCard(db) {
   <p class="mu">${db.lastBackup ? 'Последняя копия: ' + fmtD(db.lastBackup) : 'Копий ещё не было'}</p>
   <button class="btn" id="bexp">Сохранить копию файлом</button>
   <div class="g2" style="margin-top:8px"><button class="btn s2" id="bimp">Восстановить из файла</button><button class="btn s2" id="bpaste">Вставить текст</button></div>
-  <button class="textbtn" id="bcopy">Скопировать копию текстом (без фото)</button></div>`;
+  <button class="textbtn" id="bcopy">Скопировать копию текстом (без фото)</button></div>
+  ${pendingUpdate() ? '<button class="btn" style="margin-top:12px" id="bupd">Обновить приложение</button>' : ''}`;
 }
 
 // Готовим файл заранее: «Поделиться» на iPhone должно открываться сразу по нажатию.
 function prepare() {
   prepared = null;
-  exportPhotos().catch(() => []).then(photos => {prepared = JSON.stringify(makeBackup(state.db, photos));}).catch(e => console.error(e));
+  exportPhotos().then(photos => ({photos, failed: false}), e => {console.error('photos export', e); return {photos: [], failed: true};})
+    .then(({photos, failed}) => {prepared = {json: JSON.stringify(makeBackup(state.db, photos)), failed};})
+    .catch(e => console.error(e));
 }
 
 function bind() {
@@ -65,11 +68,14 @@ function bind() {
   $('#goalsave').onclick = () => {const g = num($('#goalval').value); if (!(g > 40 && g < 200)) {toast('Введи цель в кг'); return;} updDB(d => ({...d, goal: g})); renderBody(); toast('Цель сохранена');};
   $('#bexp').onclick = () => {
     if (!prepared) {toast('Готовлю копию… нажми ещё раз через секунду'); return;}
-    saveFile(`gym-backup-${ymd(new Date())}.json`, prepared).then(() => {updDB(d => ({...d, lastBackup: new Date().toISOString()})); renderBody(); toast('Копия сохранена');})
+    if (prepared.failed && !confirm('Фото не удалось добавить в копию. Сохранить копию без фото?')) return;
+    const failed = prepared.failed;
+    saveFile(`gym-backup-${ymd(new Date())}.json`, prepared.json).then(() => {updDB(d => ({...d, lastBackup: new Date().toISOString()})); renderBody(); toast(failed ? 'Копия сохранена без фото' : 'Копия сохранена');})
       .catch(e => {if (e && e.name !== 'AbortError') {console.error(e); toast('Не получилось: ' + (e.message || e));}});
   };
   $('#bimp').onclick = async () => {const f = await pickFile('.json,application/json,text/plain'); if (f) restore(await f.text());};
-  $('#bpaste').onclick = pasteSheet;
+  $('#bpaste').onclick = () => pasteSheet();
+  const up = $('#bupd'); if (up) up.onclick = () => {const u = pendingUpdate(); if (u) u();};
   $('#bcopy').onclick = async () => {
     const v = JSON.stringify(makeBackup(state.db, []));
     try {await navigator.clipboard.writeText(v); updDB(d => ({...d, lastBackup: new Date().toISOString()})); toast('Скопировано — вставь в Заметки');}
@@ -106,15 +112,17 @@ async function restore(text) {
   const inc = b.db, cur = state.db, last = inc.sessions.at(-1);
   const msg = `В копии: ${inc.sessions.length} трен.${last ? ', последняя ' + fmtD(last.date) : ''}, ${inc.bw.length} замеров веса${b.photos.length ? ', ' + b.photos.length + ' фото' : ''}.\nСейчас: ${cur.sessions.length} трен.\n\nДобавить недостающее? Ничего не удалится.`;
   if (!confirm(msg)) return;
-  snapshot();
+  if (!state.ok) unlock();
+  if (!snapshot() && !confirm('Не хватает места для отката. Восстановить без возможности отменить?')) return;
   const {db, added} = mergeDB(cur, inc);
   const {ach} = checkAch(db.ach, stats(db));
-  setDB({...db, ach});
-  let np = 0;
-  try {np = await importPhotos(b.photos);} catch (e) {console.error(e);}
+  if (!setDB({...db, ach})) {toast('Не сохранилось — на телефоне закончилось место'); return;}
+  let np = 0, photoErr = false;
+  try {np = await importPhotos(b.photos);} catch (e) {console.error(e); photoErr = true;}
   renderBody();
   const nm = added.bw + added.waist;
-  toast(`Добавлено: ${added.sessions} трен., ${nm} ${plural(nm, 'замер', 'замера', 'замеров')}${np ? ', ' + np + ' фото' : ''}`, {label: 'Отменить', run: () => {undoSnapshot(); renderBody(); toast('Восстановление отменено');}});
+  toast(`Добавлено: ${added.sessions} трен., ${nm} ${plural(nm, 'замер', 'замера', 'замеров')}${np ? ', ' + np + ' фото' : ''}${photoErr ? ' (фото не восстановились)' : ''}`, {label: 'Отменить', run: () => {undoSnapshot(); renderBody(); toast('Восстановление отменено');}});
+  setTimeout(dropSnapshot, 7000);
 }
 
 export const emergencyExport = () => saveFile(`gym-raw-${ymd(new Date())}.json`, rawExport());

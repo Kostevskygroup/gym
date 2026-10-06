@@ -53,7 +53,7 @@ function strength(used, st) {
   const recent = e1.filter(x => +st.now - new Date(x.d) < RECENT_DAYS * 864e5);
   const e1best = Math.round(Math.max(...e1.map(x => x.v))), e1now = recent.length ? Math.round(Math.max(...recent.map(x => x.v))) : null;
   const first = pts[0].y, last = pts.at(-1).y, pct = first ? Math.round((last - first) / first * 100) : 0;
-  return `<div class="exl" id="exl">${used.map(x => `<button class="${x === id ? 'on' : ''}" data-x="${x}">${esc(st.exOf(x).n)}</button>`).join('')}</div>
+  return `<div class="exl" id="exl">${used.map(x => `<button class="${x === id ? 'on' : ''}" data-x="${esc(x)}">${esc(st.exOf(x).n)}</button>`).join('')}</div>
   ${isW ? `<div class="seg" style="margin-top:12px" id="pmode"><button class="${m === 'w' ? 'on' : ''}" data-m="w">Рабочий вес</button><button class="${m === 'e' ? 'on' : ''}" data-m="e">Сила (расчёт)</button></div>` : ''}
   <div class="g2" style="margin-top:12px"><div class="st"><small>${isW && m === 'e' ? 'Лучшая сила' : 'Рекорд'}</small><b class="n">${best}<span> ${UNIT[t]}</span></b><i>старт ${first} ${UNIT[t]}</i></div>
   <div class="st"><small>${isW ? 'Максимум на 1 раз' : 'Прирост'}</small><b class="n">${isW ? '≈' + (e1now ?? e1best) + '<span> кг</span>' : (pct > 0 ? '+' : '') + pct + '<span>%</span>'}</b><i>${isW ? (e1now !== null ? `за 4 недели · лучший ${e1best}` : `лучший ${e1best}, давно`) : 'с первой тренировки'}</i></div></div>
@@ -86,7 +86,7 @@ function editSession(id) {
   const s = state.db.sessions.find(x => x.id === id);
   if (!s) return;
   const exOf = x => P.exOf(state.db, x);
-  const rowsHtml = (eid, e) => e.map((r, j) => `<div class="er" data-ex="${eid}" data-j="${j}">${exOf(eid).t === 'w' ? `<input inputmode="decimal" data-f="a" value="${r.a}" aria-label="Вес"><span>кг ×</span>` : ''}<input inputmode="numeric" data-f="b" value="${r.b}" aria-label="Повторы"><button data-rm aria-label="Убрать подход">${ICON.x}</button></div>`).join('');
+  const rowsHtml = (eid, e) => e.map((r, j) => `<div class="er" data-ex="${esc(eid)}" data-j="${j}">${exOf(eid).t === 'w' ? `<input inputmode="decimal" data-f="a" value="${r.a ?? ''}" aria-label="Вес"><span>кг ×</span>` : ''}<input inputmode="numeric" data-f="b" value="${r.b}" aria-label="Повторы"><button data-rm aria-label="Убрать подход">${ICON.x}</button></div>`).join('');
   openSheet(`<span class="grab"></span><div class="sc"><h2>Тренировка ${esc(s.wo)} · ${fmtD(s.date)}</h2>
     ${Object.entries(s.entries).map(([eid, e]) => `<div class="tb2"><h4>${esc(exOf(eid).n)}</h4>${rowsHtml(eid, e)}</div>`).join('')}
     <div class="tb2"><h4>Колени</h4><input type="number" min="0" max="10" id="ekn" value="${s.knee ?? ''}" placeholder="не указано" class="ekn"></div>
@@ -95,10 +95,13 @@ function editSession(id) {
     sh.querySelector('#eclose').onclick = closeSheet;
     sh.querySelector('#esave').onclick = () => {
       const entries = {};
+      let bad = false;
       sh.querySelectorAll('.er').forEach(r => {
         const eid = r.dataset.ex, a = r.querySelector('[data-f=a]'), b = r.querySelector('[data-f=b]');
+        if ((a && !(String(a.value).trim() && isFinite(+String(a.value).replace(',', '.')))) || !(String(b.value).trim() && isFinite(+String(b.value).replace(',', '.')))) bad = true;
         (entries[eid] = entries[eid] || []).push({a: a ? a.value : null, b: b.value});
       });
+      if (bad) {toast('Заполни вес и повторы или убери подход ✕'); return;}
       const kn = sh.querySelector('#ekn').value;
       updDB(d => normalizeDB({...d, sessions: d.sessions.map(x => x.id === id ? {...x, entries, knee: kn === '' ? null : +kn} : x)}));
       closeSheet(); renderProg(); toast('Исправлено — рекорды пересчитаны');

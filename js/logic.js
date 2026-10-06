@@ -100,20 +100,26 @@ export function aim(o) {
   const days = (+(o.now || new Date()) - new Date(L.date)) / DAY;
   if (o.t !== 'w') return aimPlain(o, L);
   const tr = topRep(o.reps) || 12, lr = lowRep(o.reps) || tr, step = o.step || 2.5;
+  // колени: худшее из «в прошлый раз на этом упражнении» и «последний день ног»
+  const kn = o.knee ? Math.max(L.knee ?? -1, o.kneeLast ?? -1) : -1;
+  const knee = kn >= 0 ? kn : null;
+  const pause = days > 14 ? (days > 28 ? 0.8 : 0.9) : 1;
   if (L.phase && o.phase && L.phase !== o.phase) {
-    const e1 = e1rm('w', L.e), rir = RIR[o.phase] ?? 2, w = floorTo(e1 / (1 + (lr + rir) / 30), step);
+    const e1 = e1rm('w', L.e), rir = RIR[o.phase] ?? 2;
+    let w = floorTo(e1 / (1 + (lr + rir) / 30), step), why = 'новый этап — вес по расчёту', down = false;
+    if (pause < 1) {w = floorTo(w * pause, step); why = 'новый этап, после перерыва — легче';}
+    if (knee >= 6) {w = floorTo(w - step, step); why = `колени ${knee}/10 — легче`; down = true;}
     const r = Math.max(lr, Math.min(tr, Math.round(30 * (e1 / w - 1)) - rir));
-    return {w, r, up: false, txt: kg(w, r), why: 'новый этап — вес по расчёту'};
+    return {w, r: pause < 1 || down ? lr : r, up: false, down, txt: kg(w, pause < 1 || down ? lr : r), why};
   }
   const P = L.e.slice(0, o.sets), w = mode(P.map(x => +x.a)), atW = P.filter(x => +x.a === w), mr = Math.min(...atW.map(x => +x.b));
-  if (days > 14) {
-    const nw = floorTo(w * (days > 28 ? 0.8 : 0.9), step);
+  if (pause < 1) {
+    const nw = floorTo(w * pause, step);
     return {w: nw, r: lr, up: false, txt: kg(nw, lr), why: 'после перерыва — начни легче'};
   }
-  const kn = o.knee ? L.knee : null;
-  if (kn >= 6) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: `колени ${kn}/10 — легче`};}
+  if (knee >= 6) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: `колени ${knee}/10 — легче`};}
   const up = atW.length >= o.sets && atW.every(x => +x.b >= tr);
-  if (up && kn >= 4) return {w, r: tr, up: false, txt: kg(w, tr), why: `колени ${kn}/10 — вес не повышаем`};
+  if (up && knee >= 4) return {w, r: tr, up: false, txt: kg(w, tr), why: `колени ${knee}/10 — вес не повышаем`};
   if (up) {const nw = r1(w + step); return {w: nw, r: lr, up: true, txt: kg(nw, lr)};}
   if (mr < lr - 1) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: 'не добрал повторы — чуть легче'};}
   const r = Math.max(lr, Math.min(mr + 1, tr));
@@ -144,12 +150,13 @@ export function defaults(o) {
 
 // Разминка перед рабочим весом: полная (50%×10, 75%×5) для первого базового
 // упражнения тренировки, один подход (60%×8) для следующей новой группы мышц.
-export function warmups(w, step, full) {
+// min — вес пустого грифа: разминка не бывает легче него.
+export function warmups(w, step, full, min = 0) {
   w = +w;
   if (!(w >= 10)) return [];
   const sets = full && w >= 20 ? [[.5, 10], [.75, 5]] : full ? [[.5, 10]] : [[.6, 8]];
   const out = [];
-  sets.forEach(([p, b]) => {const a = roundTo(w * p, step); if (a > 0 && a < w && !out.some(x => x.a === a)) out.push({a, b});});
+  sets.forEach(([p, b]) => {const a = Math.max(min, roundTo(w * p, step)); if (a > 0 && a < w && !out.some(x => x.a === a)) out.push({a, b});});
   return out;
 }
 const BIG = new Set(['quads', 'hams', 'glutes', 'chest', 'backv', 'backh', 'press']);
@@ -179,6 +186,12 @@ export function sanity(t, x, lastW) {
   if (t === 'w' && lastW > 0 && (+x.a > lastW * 1.5 || +x.a < lastW * 0.5)) return `Точно ${x.a} кг? В прошлый раз было ${lastW} кг`;
   if (+x.b > 50) return `Точно ${x.b}? Это много`;
   return null;
+}
+
+// Колени в последний день ног (где указано), или null.
+export function kneeLast(sessions, exOf) {
+  const l = [...sessions].sort(byDate).filter(s => s.knee != null && Object.keys(s.entries).some(id => exOf(id).knee)).at(-1);
+  return l ? l.knee : null;
 }
 
 // Средняя боль в коленях за последние n тренировок ног (где указана).

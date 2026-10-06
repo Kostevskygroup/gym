@@ -149,3 +149,39 @@ test('normalizeDR keeps valid drafts and repairs broken ones', () => {
   assert.deepEqual(normalizeDR(null), {});
   assert.deepEqual(emptyDraft(), {start: null, last: null, ex: {}, knee: null, swap: {}, warm: {}, skip: {}});
 });
+
+test('mergeDB into an app with no history keeps local settings, notes and plan', () => {
+  const local = {...emptyDB(), goal: 90, exs: {legpress: {note: 'сиденье 4', step: null}}, custom: {u_1: {n: 'Шраги', img: 'smith', t: 'w', g: 'rear', setup: '', how: [], bad: [], own: 1}}, plan: {p1: {label: 'a', sub: '', hint: '', w: {}}, p2: {label: 'b', sub: '', hint: '', w: {}}, p3: {label: 'c', sub: '', hint: '', w: {}}}};
+  const inc = normalizeDB({sessions: [sess(1, '2026-10-01')], goal: 80, phase: 'p2', exs: {lat: {note: 'x', step: 5}}});
+  const {db} = mergeDB(local, inc);
+  assert.equal(db.sessions.length, 1);
+  assert.equal(db.goal, 90);
+  assert.ok(db.exs.legpress && db.exs.lat);
+  assert.ok(db.custom.u_1);
+  assert.ok(db.plan);
+  assert.equal(db.phase, 'p2');
+});
+
+test('parseBackup restores the emergency raw export from the crash screen', () => {
+  const raw = JSON.stringify({db: JSON.stringify({sessions: [sess(7, '2026-10-01')]}), prev: null, dr: null, legacy: null});
+  assert.equal(parseBackup(raw).db.sessions[0].id, 7);
+  const onlyPrev = JSON.stringify({db: '{broken', prev: JSON.stringify({sessions: [sess(8, '2026-10-02')]})});
+  assert.equal(parseBackup(onlyPrev).db.sessions[0].id, 8);
+});
+
+test('normalizeDB keeps distinct sessions with missing or clashing ids', () => {
+  const db = normalizeDB({sessions: [
+    {id: null, date: '2026-10-01T10:00:00Z', entries: {lat: [{a: 40, b: 10}]}},
+    {id: '', date: '2026-10-02T10:00:00Z', entries: {lat: [{a: 42.5, b: 10}]}},
+    {id: 5, date: '2026-10-03T10:00:00Z', entries: {lat: [{a: 45, b: 10}]}},
+    {id: 5, date: '2026-10-04T10:00:00Z', entries: {lat: [{a: 47.5, b: 10}]}},
+    {id: 5, date: '2026-10-03T10:00:00Z', entries: {lat: [{a: 45, b: 11}]}},
+  ]});
+  assert.equal(db.sessions.length, 4);
+  assert.equal(new Set(db.sessions.map(s => s.id)).size, 4);
+});
+
+test('normalizeDB rejects inherited keys as equipment', () => {
+  const db = normalizeDB({custom: {u_x: {n: 'X', img: 'constructor', t: 'w', g: 'hams'}}});
+  assert.equal(db.custom.u_x, undefined);
+});

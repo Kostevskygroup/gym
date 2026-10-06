@@ -73,18 +73,24 @@ export async function persistStorage() {
 }
 
 // ---- офлайн и обновления ----
+let swReg = null, reloading = false;
+// Готовая к установке новая версия: функция «обновить сейчас» или null.
+export function pendingUpdate() {
+  const w = swReg && swReg.waiting;
+  return w && navigator.serviceWorker.controller ? () => {reloading = true; w.postMessage('skip');} : null;
+}
 export function registerSW(onUpdate) {
   if (!('serviceWorker' in navigator)) return;
-  let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {if (reloading) location.reload();});
   navigator.serviceWorker.register('./sw.js', {scope: './'}).then(reg => {
-    const offer = w => onUpdate(() => {reloading = true; w.postMessage('skip');});
-    if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+    swReg = reg;
+    const offer = () => {const u = pendingUpdate(); if (u) onUpdate(u);};
+    offer();
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
-      if (w) w.addEventListener('statechange', () => {if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w);});
+      if (w) w.addEventListener('statechange', () => {if (w.state === 'installed') offer();});
     });
-    document.addEventListener('visibilitychange', () => {if (document.visibilityState === 'visible') reg.update().catch(() => {});});
+    document.addEventListener('visibilitychange', () => {if (document.visibilityState === 'visible') reg.update().then(offer, () => {});});
   }).catch(e => console.warn('sw', e));
 }
 

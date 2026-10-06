@@ -9,7 +9,7 @@ import {unlockAudio, haptic, keepAwake} from '../platform.js';
 import {startRest, stopRest} from '../timer.js';
 import {openTech, openSwap, openNote} from './sheets.js';
 import {finish, saveStale} from './finish.js';
-import {hasPhoto} from '../data/equipment.js';
+import {EQUIP, hasPhoto} from '../data/equipment.js';
 import {ownCover} from './covers.js';
 
 const UNIT_T = {w: 'повторы', r: 'повторы', t: 'секунды', c: 'минуты'};
@@ -23,12 +23,12 @@ export function renderTrain() {
   const k = WK.curKey(), c = draft(k), items = WK.itemsFor(k), live = WK.activeKey();
   open = {};
   let h = `<div class="pt"><small>Этап ${db.phase.slice(1)} · ${esc(ph.label)}</small><h1>Тренировка ${esc(db.wo)}</h1></div>`;
-  if (c.start && WK.isStale(c)) h += `<div class="switch"><b>Тренировка от ${fmtD(c.last)} не завершена</b>Сохрани её той датой — или начни заново.<div class="g2" style="margin-top:12px"><button class="btn" id="stsave">Сохранить</button><button class="btn s2" id="stdrop">Начать заново</button></div></div>`;
+  if (c.start && WK.isStale(c)) h += `<div class="switch"><b>Тренировка от ${fmtD(c.last)} не завершена</b>Сохрани её той датой — или начни заново.<div class="g2" style="margin-top:12px"><button class="btn" id="t-stsave">Сохранить</button><button class="btn s2" id="t-stdrop">Начать заново</button></div></div>`;
   h += `<div class="seg" id="phs">${P.PHASES.map(p => `<button class="${p === db.phase ? 'on' : ''}" data-p="${p}">${esc(P.phaseOf(db, p).label)}<small>${esc(P.phaseOf(db, p).sub)}</small></button>`).join('')}</div>
   <div class="wos" id="wos">${keys.map(w => `<button class="${w === db.wo ? 'on' : ''}" data-w="${esc(w)}">${esc(w)}</button>`).join('')}<button class="edit" id="goplan">${ICON.note}Программа</button></div>
   <div class="session" id="session"></div>
   <p class="hintl">${esc(ph.hint)}</p>
-  <div id="list">${items.map(it => `<div class="ex" id="ex-${it.orig || it.id}" data-slot="${it.orig || it.id}"></div>`).join('')}</div>
+  <div id="list">${items.map(it => `<div class="ex" id="ex-${esc(it.orig || it.id)}" data-slot="${esc(it.orig || it.id)}"></div>`).join('')}</div>
   ${items.length ? '' : '<p class="empty">В этой тренировке нет упражнений — добавь их в «Программе».</p>'}
   <div class="card kneec"><div class="h">Колени сегодня</div><div class="r"><input type="range" id="knee" min="0" max="10" value="${c.knee ?? 0}" aria-label="Боль в коленях"><b class="n" id="kneev">${c.knee ?? '—'}</b></div><small>${c.knee === null ? 'Сдвинь ползунок — даже если 0.' : '0 — ничего не чувствую. Выше 3 — вес на ноги не повышаем.'}</small></div>
   <button class="btn" id="finish" style="margin-top:18px">Завершить тренировку</button>
@@ -41,15 +41,15 @@ export function renderTrain() {
 }
 
 function bindTrain(k, live) {
-  const guard = () => !live || live !== k || confirm('Идёт тренировка — переключиться? Отметки сохранятся.');
+  const guard = () => WK.activeKey() !== k || confirm('Идёт тренировка — переключиться? Отметки сохранятся.');
   $$('#phs button').forEach(b => b.onclick = () => {if (b.dataset.p === state.db.phase || !guard()) return; updDB(d => ({...d, phase: b.dataset.p, wo: P.woKeys(d, b.dataset.p)[0]})); renderTrain();});
   $$('#wos [data-w]').forEach(b => b.onclick = () => {if (b.dataset.w === state.db.wo || !guard()) return; updDB(d => ({...d, wo: b.dataset.w})); renderTrain();});
   $('#goplan').onclick = () => import('./plan.js').then(m => m.openPlan(state.db.phase, state.db.wo));
   $('#knee').oninput = e => {WK.setKnee(k, +e.target.value); $('#kneev').textContent = e.target.value;};
   $('#finish').onclick = () => finish(k);
   $('#reset').onclick = () => {if (confirm('Сбросить все отметки этой тренировки?')) {dropDraft(k); stopRest(); keepAwake(false); renderTrain(); updDot();}};
-  const ss = $('#stsave'); if (ss) ss.onclick = () => {saveStale(k); renderTrain(); updDot();};
-  const sd = $('#stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(k); renderTrain(); updDot();}};
+  const ss = $('#t-stsave'); if (ss) ss.onclick = () => saveStale(k, () => {renderTrain(); updDot();});
+  const sd = $('#t-stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(k); renderTrain(); updDot();}};
   const list = $('#list');
   list.onclick = onTap;
   list.oninput = onInput;
@@ -81,7 +81,7 @@ function renderCard(it, justK) {
   if (!el) return;
   const rows = WK.rowsFor(k, it), A = WK.aimFor(k, it), Ls = L.lastFor(db.sessions, it.id), skip = !!c.skip[it.id];
   const all = !skip && rows.every(x => x.done), nx = rows.findIndex(x => !x.done), ok = open[slot] ?? nx;
-  const tlab = e.t === 'c' ? it.r + ' мин' : e.t === 't' ? it.s + ' × ' + it.r + ' с' : it.s + ' × ' + it.r + ' повт';
+  const tlab = e.t === 'c' ? esc(it.r) + ' мин' : e.t === 't' ? it.s + ' × ' + esc(it.r) + ' с' : it.s + ' × ' + esc(it.r) + ' повт';
   const best = Ls && e.t === 'w' ? L.bestSet('w', db.sessions.flatMap(s => s.entries[it.id] || [])) : null;
   const pic = photoFor(it.id, e), note = P.noteOf(db, it.id);
   el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '');
@@ -123,9 +123,9 @@ function rowOpen(e, x, j, isNext, just, n, Ls) {
 }
 
 function warmHtml(k, it, e, rows) {
-  const plan = L.warmPlan(WK.itemsFor(k), id => P.exOf(state.db, id));
+  const sk = draft(k).skip, plan = L.warmPlan(WK.itemsFor(k).filter(x => !sk[x.id]), id => P.exOf(state.db, id));
   if (!plan[it.id]) return '';
-  const w = +(rows[0] && rows[0].a) || 0, sets = L.warmups(w, P.stepOf(state.db, it.id), plan[it.id] === 'full');
+  const w = +(rows[0] && rows[0].a) || 0, sets = L.warmups(w, P.stepOf(state.db, it.id), plan[it.id] === 'full', EQUIP[e.img]?.min || 0);
   if (!sets.length) return '';
   const done = draft(k).warm[it.id] || [];
   if (rows.some(x => x.done) && !done.some(Boolean)) return '';
@@ -156,8 +156,16 @@ function onTap(ev) {
   if (act === 'tech') return openTech(it.id);
   if (act === 'note') return openNote(it.id, () => renderCard(itemBySlot(slot)));
   if (act === 'swap') return openSwap(k, it, () => {renderTrain();});
-  if (act === 'unswap') {WK.swapEx(k, it.orig, it.orig); return renderTrain();}
-  if (act === 'skip') {const on = !draft(k).skip[it.id]; WK.setSkip(k, it.id, on); renderCard(it); updSession(); if (on) toast('Пропущено', {label: 'Вернуть', run: () => {WK.setSkip(k, it.id, false); renderCard(itemBySlot(slot)); updSession();}}); return;}
+  if (act === 'unswap') {
+    if ((draft(k).ex[it.id] || []).some(x => x.done) && !confirm(`Отмеченные подходы по «${e.n}» сбросятся. Вернуть по плану?`)) return;
+    WK.swapEx(k, it.orig, it.orig); return renderTrain();
+  }
+  if (act === 'skip') {
+    const on = !draft(k).skip[it.id];
+    WK.setSkip(k, it.id, on); renderAll();
+    if (on) toast('Пропущено', {label: 'Вернуть', run: () => {WK.setSkip(k, it.id, false); if (WK.curKey() === k && $('#v-train').classList.contains('on')) renderAll();}});
+    return;
+  }
   if (act === 'add') {WK.addSet(k, it); open[slot] = WK.rowsFor(k, it).length - 1; return rerender(it);}
   if (act === 'warm') return tapWarm(k, it, +b.dataset.w);
   const j = +b.closest('.set').dataset.k, rows = WK.rowsFor(k, it), x = rows[j];
@@ -187,7 +195,7 @@ function tapCheck(k, it, j, x, e) {
     if (q && !confirm(q)) return;
   }
   const slot = it.orig || it.id;
-  WK.markSet(k, it, j, !x.done, now);
+  if (!WK.markSet(k, it, j, !x.done, now)) {toast('Сначала сохрани или удали незавершённую тренировку вверху'); return;}
   delete open[slot];
   haptic(18);
   updDot();
@@ -223,7 +231,14 @@ function tapWarm(k, it, j) {
   rerender(it);
 }
 
+// К упражнению, где был последний отмеченный подход (или к следующему), иначе — к первому незаконченному.
 export function scrollToCurrent() {
-  const n = $('#list .set.nx') || $('#list .set.x');
-  if (n) n.scrollIntoView({block: 'center'});
+  const k = WK.curKey(), c = draft(k), items = WK.itemsFor(k);
+  let best = null, bt = 0;
+  items.forEach(it => (c.ex[it.id] || []).forEach(x => {if (x.done && x.t > bt) {bt = x.t; best = it;}}));
+  let target = best && !WK.exDone(k, best) ? best : best ? nextUp(k, best.orig || best.id) : null;
+  const card = target ? $('#ex-' + CSS.escape(target.orig || target.id)) : null;
+  const n = (card && (card.querySelector('.set.nx') || card)) || $('#list .set.nx') || $('#list .set.x');
+  if (n) n.scrollIntoView({block: card && !card.querySelector('.set.nx') ? 'start' : 'center'});
 }
+function renderAll() {WK.itemsFor(WK.curKey()).forEach(x => renderCard(x)); updSession();}

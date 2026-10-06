@@ -44,7 +44,7 @@ function draw(sh) {
     const i = +b.closest('.pi').dataset.i, it = items[i], a = b.dataset.a;
     if (a === 'sm' || a === 'sp') apply(d => P.setItem(d, ph, wo, i, {s: Math.min(10, Math.max(1, it.s + (a === 'sp' ? 1 : -1)))}));
     if (a === 'up' || a === 'dn') apply(d => P.moveItem(d, ph, wo, i, a === 'up' ? -1 : 1));
-    if (a === 'rm' && confirm(`Убрать «${P.exOf(state.db, it.id).n}» из тренировки ${wo}?`)) apply(d => P.removeItem(d, ph, wo, i));
+    if (a === 'rm' && confirm(`Убрать «${P.exOf(state.db, it.id).n}» из тренировки ${wo}? Уже отмеченные сегодня подходы сохранятся.`)) apply(d => P.removeItem(d, ph, wo, i));
     draw(sh);
   };
   sh.querySelector('.plist').onchange = ev => {
@@ -63,8 +63,8 @@ function draw(sh) {
 function picker(sh) {
   const db = state.db, inWo = P.itemsOf(db, ph, wo).map(x => x.id), all = P.allEx(db);
   sh.innerHTML = `<span class="grab"></span><div class="sc"><h2>Добавить в «${esc(wo)}»</h2><p class="hint2">Только тренажёры твоего зала.</p>
-  ${P.pickerGroups(db).map(g => `<div class="pg"><div class="pgh">${hasPhoto(g.eq) ? `<img src="img/${g.eq}.jpg" alt="">` : ''}<b>${esc(EQUIP[g.eq].n)}</b></div>
-    ${g.items.map(id => `<button class="pk" data-id="${id}" ${inWo.includes(id) ? 'disabled' : ''}><b>${esc(all[id].n)}</b><small>${esc(P.GROUPS[all[id].g] || '')}${all[id].knee ? ' · колени' : ''}${inWo.includes(id) ? ' · уже есть' : ''}</small></button>`).join('')}</div>`).join('')}
+  ${P.pickerGroups(db).map(g => `<div class="pg"><div class="pgh">${hasPhoto(g.eq) ? `<img src="img/${g.eq}.jpg" alt="">` : '<span class="noph"></span>'}<b>${esc(EQUIP[g.eq].n)}</b></div>
+    ${g.items.map(id => ` <button class="pk" data-id="${esc(id)}" ${inWo.includes(id) ? 'disabled' : ''}><b>${esc(all[id].n)}</b><small>${esc(P.GROUPS[all[id].g] || '')}${all[id].knee ? ' · колени' : ''}${inWo.includes(id) ? ' · уже есть' : ''}</small></button>`).join('')}</div>`).join('')}
   <button class="btn s2" style="margin-top:14px" id="pback">Назад</button></div>`;
   sh.scrollTop = 0;
   sh.querySelectorAll('.pk[data-id]').forEach(b => b.onclick = () => {if (apply(d => P.addItem(d, ph, wo, b.dataset.id))) {toast('Добавлено'); draw(sh);}});

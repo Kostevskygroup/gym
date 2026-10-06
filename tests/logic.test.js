@@ -250,3 +250,39 @@ test('kneeAvg uses only sessions with knee-loading exercises and a recorded valu
   assert.equal(kneeAvg(s, exOf, 3), 4);
   assert.equal(kneeAvg([], exOf, 3), null);
 });
+
+test('warmups never go below the empty bar', () => {
+  assert.deepEqual(warmups(30, 2.5, true, 20), [{a: 20, b: 10}, {a: 22.5, b: 5}]);
+  assert.deepEqual(warmups(20, 2.5, true, 20), []);
+  assert.deepEqual(warmups(60, 2.5, true, 20), [{a: 30, b: 10}, {a: 45, b: 5}]);
+});
+
+test('free weights show up as swaps for machine exercises', () => {
+  assert.ok(alternatives('row', EX).includes('bbrow'));
+  assert.ok(alternatives('rdl', EX).includes('bbrdl'));
+  assert.ok(alternatives('cablecurl', EX).includes('ezcurl'));
+  assert.ok(alternatives('rope', EX).includes('ezskull'));
+});
+
+test('aim: knee guard uses the latest leg day, not only the last time this exercise was done', () => {
+  const s = [S('2026-10-06', {legpress: W3(100, 12, 12, 12)}, {knee: 1}), S('2026-10-08', {hipthrust: W3(60, 10)}, {knee: 7})];
+  const A = aim({id: 'legpress', t: 'w', sets: 3, reps: '12', step: 2.5, phase: 'p2', now, sessions: s, knee: 1, kneeLast: 7});
+  assert.equal(A.up, false);
+  assert.equal(A.w, 97.5);
+});
+
+test('aim: phase change after a long break still deloads; knee pain still lowers', () => {
+  const s = [S('2026-08-20', {lat: W3(50, 10, 10, 10)}, {phase: 'p2'})];
+  const A = aim({id: 'lat', t: 'w', sets: 4, reps: '6–8', step: 2.5, phase: 'p3', now, sessions: s});
+  assert.ok(A.w < 52.5);
+  assert.match(A.why, /перерыв/);
+  const k = aim({id: 'legpress', t: 'w', sets: 4, reps: '6–8', step: 2.5, phase: 'p3', now, sessions: [S('2026-10-08', {legpress: W3(100, 12, 12, 12)}, {phase: 'p2', knee: 8})], knee: 1});
+  assert.equal(k.down, true);
+});
+
+test('kneeLast returns the most recent recorded leg-day knee score', async () => {
+  const {kneeLast} = await import('../js/logic.js');
+  const s = [S('2026-10-01', {legpress: W3(100, 12)}, {knee: 2}), S('2026-10-02', {lat: W3(40, 10)}, {knee: 9}), S('2026-10-03', {hipthrust: W3(60, 10)}, {knee: null})];
+  assert.equal(kneeLast(s, exOf), 2);
+  assert.equal(kneeLast([], exOf), null);
+});

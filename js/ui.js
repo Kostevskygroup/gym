@@ -11,13 +11,13 @@ export function toast(text, action) {
   if (action) {
     const b = document.createElement('button');
     b.textContent = action.label;
-    b.onclick = () => {e.classList.remove('on'); action.run();};
+    b.onclick = () => {b.onclick = null; e.classList.remove('on', 'act'); action.run();};
     e.append(b);
   }
   e.classList.toggle('act', !!action);
   e.classList.add('on');
   clearTimeout(toastT);
-  toastT = setTimeout(() => e.classList.remove('on'), action ? 6000 : 2400);
+  toastT = setTimeout(() => e.classList.remove('on', 'act'), action ? 6000 : 2400);
 }
 
 let onClose = null;

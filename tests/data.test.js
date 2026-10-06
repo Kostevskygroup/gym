@@ -48,3 +48,8 @@ test('photo guides reference known exercises and stay inside the photo', () => {
 test('every exercise with a gym photo has a photo guide', () => {
   for (const [id, e] of Object.entries(EX)) if (hasPhoto(e.img)) assert.ok(GUIDE[id], id);
 });
+
+test('no power rack: barbell work is limited to moves you can start from the floor', () => {
+  const ok = new Set(['backh', 'hams', 'glutes', 'biceps']);
+  for (const [id, e] of Object.entries(EX)) if (e.img === 'barbell') assert.ok(ok.has(e.g), `${id}: нужна рама — делай в Смите`);
+});

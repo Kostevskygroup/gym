@@ -41,7 +41,7 @@ export function renderHome(go) {
   <div class="ring">${ringSvg(thisW / T)}<div class="c"><b class="n">${thisW}/${T}</b><small>неделя</small></div></div></div>`;
   if (ak) {
     const c = draft(ak), wo = WK.splitKey(ak)[1];
-    h += WK.isStale(c) ? `<div class="switch"><b>Тренировка ${esc(wo)} от ${fmtD(c.last)} не завершена</b>Сохранить её той датой или удалить?<div class="g2" style="margin-top:12px"><button class="btn" id="stsave">Сохранить</button><button class="btn s2" id="stdrop">Удалить</button></div></div>`
+    h += WK.isStale(c) ? `<div class="switch"><b>Тренировка ${esc(wo)} от ${fmtD(c.last)} не завершена</b>Сохранить её той датой или удалить?<div class="g2" style="margin-top:12px"><button class="btn" id="h-stsave">Сохранить</button><button class="btn s2" id="h-stdrop">Удалить</button></div></div>`
       : `<button class="live" id="golive"><span class="p"></span><span class="t"><b>Идёт тренировка ${esc(wo)}</b><small class="n" id="liveel">${fmtT((Date.now() - c.start) / 1000)}</small></span><em>Продолжить</em></button>`;
   }
   if (gap !== null && gap > 14) h += `<div class="switch"><b>С возвращением! Перерыв ${gap} ${plural(gap, 'день', 'дня', 'дней')}</b>Первые тренировки веса будут на 10–20% легче — это нормально, сила вернётся быстро.</div>`;
@@ -80,8 +80,8 @@ function bind(go, nw, ak, rp) {
   const gp = $('#gophase'); if (gp) gp.onclick = () => {updDB(d => ({...d, phase: rp, wo: P.woKeys(d, rp)[0]})); renderHome(go); toast('Этап ' + rp.slice(1) + ' — поехали!');};
   const gb = $('#gobody'); if (gb) gb.onclick = () => go('body');
   const gk = $('#gobackup'); if (gk) gk.onclick = () => go('body', false, 'backup');
-  const ss = $('#stsave'); if (ss) ss.onclick = () => {saveStale(ak); renderHome(go);};
-  const sd = $('#stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(ak); renderHome(go);}};
+  const ss = $('#h-stsave'); if (ss) ss.onclick = () => saveStale(ak, () => renderHome(go));
+  const sd = $('#h-stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(ak); renderHome(go);}};
 }
 
 export function tickLive() {

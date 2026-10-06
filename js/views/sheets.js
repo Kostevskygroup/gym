@@ -33,8 +33,9 @@ export function openTech(id) {
   const html = `<span class="grab"></span><div class="sc">
   <h2>${esc(e.n)}</h2>${eq ? `<p class="eqn">${esc(eq.n)}</p>` : ''}
   ${guideSvg(id, e) ? `<div class="tb2"><h4>Настройка на твоём тренажёре</h4>${guideSvg(id, e)}</div>` : ''}
+  ${!hasPhoto(e.img) && e.img !== 'mat' ? `<div class="note" style="margin:16px 0 0">Фото «${esc(eq ? eq.n : 'снаряда')}» из твоего зала пока нет. Сфоткай его кнопкой «Табличка» ниже — фото станет обложкой упражнения.</div>` : ''}
   ${e.setup ? `<div class="tb2"><p>${esc(e.setup)}</p></div>` : ''}
-  <div class="tb2"><h4>Мои фото: старт и финиш</h4><div class="phs" id="phs"></div>
+  <div class="tb2"><h4>Мои фото: старт и финиш</h4><div class="phs" id="myphs"></div>
     <div class="g3"><button class="btn s2 sm" data-add="start">${ICON.cam}Старт</button><button class="btn s2 sm" data-add="end">${ICON.cam}Финиш</button><button class="btn s2 sm" data-add="plate">${ICON.cam}Табличка</button></div>
     <p class="hint2">Попроси кого-нибудь в зале сфоткать тебя в начале и в конце движения — или сними инструкцию на самом тренажёре. Фото хранятся на телефоне и входят в резервную копию.</p></div>
   ${note ? `<div class="tb2"><h4>Мои заметки</h4><p>${esc(note)}</p></div>` : ''}
@@ -44,11 +45,11 @@ export function openTech(id) {
   <button class="btn" style="margin-top:10px" id="techclose">Понятно</button></div>`;
   const drawPhotos = async () => {
     urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
-    const box = $('#phs'); if (!box) return;
+    const box = document.querySelector('#sheet #myphs'); if (!box) return;
     let list = [];
     try {list = await listPhotos(id);} catch (err) {box.innerHTML = '<p class="hint2">Фото недоступны в этом браузере.</p>'; return;}
     box.innerHTML = list.length ? list.map(p => {const u = URL.createObjectURL(p.blob); urls.push(u); return `<button class="ph" data-ph="${p.id}"><img src="${u}" alt="${esc(LABELS[p.label] || 'Фото')}"><span>${esc(LABELS[p.label] || 'Фото')}</span></button>`;}).join('') : '';
-    $$('#phs [data-ph]').forEach(b => b.onclick = () => viewPhoto(list.find(p => p.id === +b.dataset.ph), b.querySelector('img').src, drawPhotos));
+    box.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => viewPhoto(list.find(p => p.id === +b.dataset.ph), b.querySelector('img').src, drawPhotos));
   };
   openSheet(html, sh => {
     sh.querySelector('#techclose').onclick = closeSheet;
@@ -81,7 +82,7 @@ export function openSwap(k, it, done) {
   if (it.orig && !list.includes(it.orig)) list.unshift(it.orig);
   const row = id => {
     const e = P.exOf(db, id), Ls = L.lastFor(db.sessions, id);
-    return `<button class="alt" data-to="${id}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t"><b>${esc(e.n)}${id === it.orig ? ' · по плану' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${e.knee ? ' · колени' : ''}</small><small>${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? x.a + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не делал'}</small></span></button>`;
+    return `<button class="alt" data-to="${esc(id)}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t"><b>${esc(e.n)}${id === it.orig ? ' · по плану' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${e.knee ? ' · колени' : ''}</small><small>${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? x.a + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не делал'}</small></span></button>`;
   };
   openSheet(`<span class="grab"></span><div class="sc"><h2>Заменить «${esc(cur.n)}»</h2>
     <p class="hint2">Тренажёр занят? Замена — на ту же группу мышц, только на оборудовании твоего зала.</p>

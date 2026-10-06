@@ -61,12 +61,14 @@ test('marking a set starts the session and copies weight only to untouched sets'
   assert.equal(WK.activeKey(), K);
 });
 
-test('clearing a done set un-ticks it so it is not saved as 0', () => {
+test('clearing a done set is never saved as 0 and is reported at finish', () => {
   const it = item('legpress');
   WK.editField(K, it, 0, 'a', 100);
   WK.markSet(K, it, 0, true);
+  WK.markSet(K, it, 1, true);
   WK.editField(K, it, 0, 'b', '');
-  assert.equal(WK.rowsFor(K, it)[0].done, false);
+  assert.equal(WK.buildSession(K).entries.legpress.length, 1);
+  assert.ok(WK.pending(K).some(p => p.id === 'legpress'));
 });
 
 test('add / remove sets; done sets cannot be removed', () => {
@@ -98,7 +100,11 @@ test('skip counts as complete for progress and is excluded from pending', () => 
   assert.equal(WK.progressOf(K).total, total);
 });
 
-test('knee question is required only when knee exercises are in the workout', () => {
+test('knee question is asked only when a knee-loading exercise will be saved', () => {
+  assert.equal(WK.needsKnee(K), false);
+  const it = item('legpress');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true);
   assert.equal(WK.needsKnee(K), true);
   WK.setKnee(K, 2);
   assert.equal(WK.needsKnee(K), false);
@@ -157,4 +163,57 @@ test('snapshot / undoSnapshot roll back an import', () => {
   assert.equal(store.undoSnapshot(), true);
   assert.equal(store.state.db.goal, 90);
   assert.equal(store.hasSnapshot(), false);
+});
+
+test('sets of an exercise removed from the plan mid-workout are still saved', async () => {
+  const P = await import('../js/program.js');
+  const it = item('legpress');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true);
+  const i = WK.itemsFor(K).findIndex(x => x.id === 'legpress');
+  store.setDB(P.removeItem(store.state.db, 'p2', 'Низ 1', i));
+  assert.ok(WK.buildSession(K).entries.legpress);
+});
+
+test('session start comes from the first ticked working set, not from a warm-up tap', () => {
+  const it = item('legpress'), t0 = Date.parse('2026-10-05T10:00:00Z');
+  WK.setWarm(K, 'legpress', [true]);
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true, t0);
+  WK.markSet(K, it, 1, true, t0 + 20 * 60e3);
+  const s = WK.buildSession(K, t0 + 21 * 60e3);
+  assert.equal(s.dur, 20);
+});
+
+test('needsKnee looks at what will actually be saved', () => {
+  WK.setSkip(K, 'legpress', true);
+  const it = item('lat') || WK.itemsFor(K).find(x => x.id === 'rdl');
+  WK.editField(K, it, 0, 'a', 20);
+  WK.markSet(K, it, 0, true);
+  assert.equal(WK.needsKnee(K), false);
+});
+
+test('undoing a finished workout also takes back the achievements it unlocked', () => {
+  const it = item('legpress');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true);
+  const s = WK.buildSession(K), r = WK.commit(K, s);
+  assert.ok(store.state.db.ach.first);
+  WK.undoCommit(s, K, r.keep, r.prevAch);
+  assert.equal(store.state.db.ach.first, undefined);
+});
+
+test('a failed save does not change what the app shows', () => {
+  const before = store.state.db;
+  globalThis.__full = true;
+  assert.equal(store.setDB({...before, goal: 70}), false);
+  assert.equal(store.state.db, before);
+});
+
+test('marking a set on a stale draft is refused', () => {
+  const it = item('legpress'), t0 = Date.parse('2026-10-01T10:00:00Z');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true, t0);
+  assert.equal(WK.markSet(K, it, 1, true, t0 + 24 * 3600e3), false);
+  assert.equal(WK.rowsFor(K, it)[1].done, false);
 });

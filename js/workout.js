@@ -40,7 +40,10 @@ export const exDone = (k, it) => draft(k).skip[it.id] || rowsFor(k, it).every(x 
 export function setRows(k, id, rows) {
   patchDraft(k, c => ({...c, ex: {...c.ex, [id]: rows}}));
 }
+// Возвращает false, если черновик устарел: его сначала сохраняют или удаляют.
 export function markSet(k, it, idx, done, now = Date.now()) {
+  const c0 = draft(k);
+  if (done && c0.start && isStale(c0, now)) return false;
   const rows = rowsFor(k, it), x = rows[idx];
   const next = rows.map((r, j) => {
     if (j === idx) return done ? {...r, done: true, t: now} : {...r, done: false};
@@ -48,18 +51,20 @@ export function markSet(k, it, idx, done, now = Date.now()) {
     if (done && j > idx && !r.done && !r.edA && P.exOf(state.db, it.id).t === 'w') return {...r, a: x.a};
     return r;
   });
-  patchDraft(k, c => ({...c, start: c.start || now, last: done ? now : c.last, ex: {...c.ex, [it.id]: next}}));
+  patchDraft(k, c => ({...c, start: c.start && hasDone(c) ? c.start : done ? now : c.start, last: done ? now : c.last, ex: {...c.ex, [it.id]: next}}));
+  return true;
 }
+// Пустое значение в отмеченном подходе не снимает ✓ — об этом предупредит «Завершить».
 export function editField(k, it, idx, f, v) {
   const rows = rowsFor(k, it);
-  const next = rows.map((r, j) => j !== idx ? r : {...r, [f]: v, [f === 'a' ? 'edA' : 'edB']: true, ...(v === '' && r.done ? {done: false} : {})});
+  const next = rows.map((r, j) => j !== idx ? r : {...r, [f]: v, [f === 'a' ? 'edA' : 'edB']: true});
   setRows(k, it.id, next);
 }
 export function addSet(k, it) {const rows = rowsFor(k, it), l = rows[rows.length - 1] || {a: '', b: ''}; setRows(k, it.id, [...rows, {a: l.a, b: l.b, done: false}]);}
 export function removeSet(k, it, idx) {const rows = rowsFor(k, it); if (rows.length > 1 && !rows[idx].done) setRows(k, it.id, rows.filter((_, j) => j !== idx));}
 export const setSkip = (k, id, on) => patchDraft(k, c => {const {[id]: _, ...rest} = c.skip; return {...c, skip: on ? {...rest, [id]: true} : rest};});
 export const setKnee = (k, v) => patchDraft(k, c => ({...c, knee: v}));
-export const setWarm = (k, id, arr) => patchDraft(k, c => ({...c, start: c.start || Date.now(), warm: {...c.warm, [id]: arr}}));
+export const setWarm = (k, id, arr) => patchDraft(k, c => ({...c, warm: {...c.warm, [id]: arr}}));
 export function swapEx(k, origId, toId) {
   patchDraft(k, c => {
     const {[origId]: _, ...swap} = c.swap, cur = c.swap[origId] || origId, {[cur]: __, ...ex} = c.ex;
@@ -67,45 +72,51 @@ export function swapEx(k, origId, toId) {
   });
 }
 
-// Что не отмечено: подходы с числами без ✓ и упражнения без единого подхода.
+// Что не отмечено: подходы без ✓ и отмеченные, но с пустыми числами.
 export function pending(k) {
   const c = draft(k), out = [];
   itemsFor(k).forEach(it => {
     if (c.skip[it.id]) return;
-    const n = rowsFor(k, it).filter(x => !x.done).length;
+    const t = P.exOf(state.db, it.id).t;
+    const n = rowsFor(k, it).filter(x => !x.done || x.b === '' || (t === 'w' && x.a === '')).length;
     if (n) out.push({id: it.id, n});
   });
   return out;
 }
-export const needsKnee = k => draft(k).knee === null && itemsFor(k).some(it => !draft(k).skip[it.id] && P.exOf(state.db, it.id).knee);
 
+const doneRows = (t, rows) => (rows || []).filter(x => x.done && x.b !== '' && (t !== 'w' || x.a !== ''));
+// Сохраняет и то, что убрали из программы посреди тренировки: отмеченное не теряется.
 export function buildSession(k, now = Date.now()) {
   const c = draft(k), [phase, wo] = splitKey(k), entries = {};
-  itemsFor(k).forEach(it => {
-    const t = P.exOf(state.db, it.id).t;
-    const rows = (c.ex[it.id] || []).filter(x => x.done && x.b !== '' && (t !== 'w' || x.a !== ''));
-    if (rows.length) entries[it.id] = rows.map(x => ({a: t === 'w' ? +x.a : null, b: +x.b}));
-  });
+  const add = id => {
+    const t = P.exOf(state.db, id).t, rows = doneRows(t, c.ex[id]);
+    if (rows.length && !entries[id]) entries[id] = rows;
+  };
+  itemsFor(k).forEach(it => add(it.id));
+  Object.keys(c.ex).forEach(add);
   if (!Object.keys(entries).length) return null;
-  const end = c.last && now - c.last > STALE_MS ? c.last : now;
-  const dur = c.start ? Math.min(MAX_DUR_MIN, Math.max(1, Math.round((end - c.start) / 60000))) : null;
+  const ts = Object.values(entries).flat().map(x => x.t).filter(Boolean);
+  const start = ts.length ? Math.min(...ts) : c.start, last = ts.length ? Math.max(...ts) : c.last;
+  const end = last && now - last > STALE_MS ? last : now;
+  const dur = start ? Math.min(MAX_DUR_MIN, Math.max(1, Math.round((Math.min(end, last || end) - start) / 60000))) : null;
   const swaps = Object.keys(c.swap).length ? {...c.swap} : undefined;
-  return {id: end, date: new Date(end).toISOString(), phase, wo, knee: c.knee, entries, dur, ...(swaps ? {swaps} : {})};
+  const out = Object.fromEntries(Object.entries(entries).map(([id, rows]) => {const t = P.exOf(state.db, id).t; return [id, rows.map(x => ({a: t === 'w' ? +x.a : null, b: +x.b}))];}));
+  return {id: end, date: new Date(end).toISOString(), phase, wo, knee: c.knee, entries: out, dur, ...(swaps ? {swaps} : {})};
 }
+export const needsKnee = k => {const s = buildSession(k); return draft(k).knee === null && !!s && Object.keys(s.entries).some(id => P.exOf(state.db, id).knee);};
 
 // Сохраняет тренировку. Черновик удаляется только если запись прошла.
 export function commit(k, s) {
-  const sessions = [...state.db.sessions, s];
-  const st = stats({...state.db, sessions}, new Date());
-  const {ach, fresh} = checkAch(state.db.ach, st);
-  const ok = setDB({...state.db, sessions, ach});
-  if (!ok) return {ok: false, fresh: []};
+  const before = state.db.ach, sessions = [...state.db.sessions, s];
+  const {ach, fresh} = checkAch(before, stats({...state.db, sessions}, new Date()));
+  if (!setDB({...state.db, sessions, ach})) return {ok: false, fresh: []};
   const keep = state.dr[k];
   dropDraft(k);
-  return {ok: true, fresh, keep};
+  return {ok: true, fresh, keep, prevAch: before};
 }
-export function undoCommit(s, k, keep) {
-  setDB({...state.db, sessions: state.db.sessions.filter(x => x.id !== s.id)});
+// Отмена: убирает тренировку, возвращает черновик и достижения, какими они были.
+export function undoCommit(s, k, keep, prevAch) {
+  setDB({...state.db, sessions: state.db.sessions.filter(x => x.id !== s.id), ach: prevAch || state.db.ach});
   if (keep) patchDraft(k, () => keep);
 }
 

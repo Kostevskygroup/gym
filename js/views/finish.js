@@ -31,13 +31,15 @@ function askKnee(k, next) {
   });
 }
 
-export function saveStale(k) {
-  const s = WK.buildSession(k);
-  if (!s) {toast('В этой тренировке нет отмеченных подходов'); return false;}
-  const r = WK.commit(k, s);
-  if (!r.ok) {toast('Не сохранилось — сделай резервную копию в «Тело»'); return false;}
-  toast('Сохранено с датой ' + fmtD(s.date));
-  return true;
+export function saveStale(k, after) {
+  if (!WK.buildSession(k)) {toast('В этой тренировке нет отмеченных подходов'); return;}
+  const run = () => {
+    const s = WK.buildSession(k), r = WK.commit(k, s);
+    if (!r.ok) {toast('Не сохранилось — сделай резервную копию в «Тело»'); return;}
+    toast('Сохранено с датой ' + fmtD(s.date));
+    after && after();
+  };
+  if (WK.needsKnee(k)) askKnee(k, run); else run();
 }
 
 function save(k) {
@@ -96,7 +98,7 @@ function showDone(s, r, k) {
   confetti(prs.length || r.fresh.length ? 160 : 70);
   $('#d-undo').onclick = () => {
     if (!confirm('Отменить сохранение? Тренировка вернётся в работу.')) return;
-    WK.undoCommit(s, k, r.keep);
+    WK.undoCommit(s, k, r.keep, r.prevAch);
     $('#doneov').classList.remove('on');
     go('train');
     toast('Вернул тренировку — продолжай');

@@ -2,7 +2,7 @@
 import {$, $$, toast, closeSheet, sheetOpen} from './ui.js';
 import {state, load, storageWorks, rawExport, updDB} from './store.js';
 import * as WK from './workout.js';
-import {registerSW, saveFile} from './platform.js';
+import {registerSW, saveFile, pendingUpdate} from './platform.js';
 import {resumeRest, stopRest, adjust} from './timer.js';
 import {unlockAudio} from './platform.js';
 import {renderHome, tickLive} from './views/home.js';
@@ -51,18 +51,20 @@ function bindGlobal() {
   };
   $('#d-backup').onclick = () => {$('#doneov').classList.remove('on'); go('body', false, 'backup');};
   $('#crash-save').onclick = () => saveFile(`gym-raw-${ymd(new Date())}.json`, rawExport()).catch(() => {});
-  $('#crash-reload').onclick = () => location.reload();
+  $('#crash-reload').onclick = () => {const u = pendingUpdate(); if (u) u(); else location.reload();};
   window.addEventListener('error', e => crash(e.error || e.message));
   window.addEventListener('unhandledrejection', e => crash(e.reason));
   setInterval(() => {tickElapsed(); tickLive();}, 1000);
+  addEventListener('gym:savefail', () => toast('Не сохранилось — на телефоне закончилось место. Сохрани копию в «Тело»'));
   onFinishNav(go);
   onPlanClose(() => {if (cur === 'train') renderTrain();});
 }
 
 function start() {
   if (!storageWorks()) $('#warn').classList.add('on');
-  try {load();} catch (e) {crash(e); return;}
   bindGlobal();
+  registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));
+  try {load();} catch (e) {crash(e); return;}
   updDot();
   resumeRest();
   const ak = WK.activeKey();
@@ -72,7 +74,6 @@ function start() {
     go('train', true);
   } else go('home');
   refreshCovers().then(() => {if (cur === 'train') renderTrain();});
-  registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));
 }
 
 start();

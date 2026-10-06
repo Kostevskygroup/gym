@@ -21,9 +21,9 @@ export function stopRest() {
   document.body.classList.remove('timing');
 }
 export function adjust(sec) {
-  const r = state.dr.rest;
-  if (!r) return;
-  const end = Math.max(Date.now() + 1000, r.end + sec * 1000);
+  const r = state.dr.rest, now = Date.now();
+  if (!r || (sec < 0 && r.end <= now)) return;
+  const end = Math.max(now + 1000, Math.max(now, r.end) + sec * 1000);
   setRest({...r, end, tot: Math.max(r.tot + (sec > 0 ? sec : 0), 1)});
   rang = end > Date.now() ? false : rang;
   tick();

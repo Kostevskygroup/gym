@@ -1,22 +1,30 @@
 // Свои фото упражнений (старт/финиш, табличка с тренажёра) — в IndexedDB на телефоне.
 const NAME = 'gym-photos', STORE = 'photos', MAX = 1280, QUALITY = 0.82;
 
+// Соединение переоткрывается, если iOS его закрыла (после сна или нехватки памяти).
 let dbp = null;
 function open() {
   if (!dbp) dbp = new Promise((res, rej) => {
     const r = indexedDB.open(NAME, 1);
     r.onupgradeneeded = () => r.result.createObjectStore(STORE, {keyPath: 'id', autoIncrement: true}).createIndex('ex', 'ex');
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
+    r.onsuccess = () => {const db = r.result; db.onclose = db.onversionchange = () => {try {db.close();} catch (e) {} dbp = null;}; res(db);};
+    r.onerror = () => {dbp = null; rej(r.error);};
   });
   return dbp;
 }
-async function tx(mode, fn) {
+async function tx(mode, fn, retry = true) {
   const db = await open();
+  let t;
+  try {t = db.transaction(STORE, mode);} catch (e) {
+    dbp = null;
+    if (retry) return tx(mode, fn, false);
+    throw e;
+  }
   return new Promise((res, rej) => {
-    const t = db.transaction(STORE, mode), out = fn(t.objectStore(STORE));
+    const out = fn(t.objectStore(STORE));
     t.oncomplete = () => res(out && 'result' in out ? out.result : undefined);
     t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error || new Error('Фото: операция прервана'));
   });
 }
 
