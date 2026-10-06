@@ -4,7 +4,7 @@ import {state, draft, updDB, dropDraft} from '../store.js';
 import * as P from '../program.js';
 import * as L from '../logic.js';
 import * as WK from '../workout.js';
-import {esc, fmtT, fmtD} from '../format.js';
+import {esc, fmtT, fmtD, plural} from '../format.js';
 import {unlockAudio, haptic, keepAwake} from '../platform.js';
 import {startRest, stopRest} from '../timer.js';
 import {openTech, openSwap, openNote} from './sheets.js';
@@ -13,6 +13,9 @@ import {EQUIP, hasPhoto} from '../data/equipment.js';
 import {ownCover} from './covers.js';
 
 const UNIT_T = {w: 'повторы', r: 'повторы', t: 'секунды', c: 'минуты'};
+const UNIT_S = {w: 'повт', r: 'повт', t: 'сек', c: 'мин'};
+const ROLE = {stab: '① Стабилизация', flex: '② Скручивание', side: '③ Анти-вращение и бок'};
+const coreHead = it => `<div class="blkh"><div class="bi">${ICON.core}</div><div><b>Пресс · ${it.s} ${plural(it.s, 'круг', 'круга', 'кругов')}</b><small>По одному подходу каждого упражнения подряд, без отдыха → отдых 60 с → следующий круг. Приложение ведёт по кругу само.</small></div></div>`;
 const RIR_TXT = {p1: '3 повтора в запасе', p2: '1–2 повтора в запасе', p3: '1 повтор в запасе'};
 let open = {}, lastTap = 0;
 const DOUBLE_TAP_MS = 600;
@@ -28,7 +31,7 @@ export function renderTrain() {
   <div class="wos" id="wos">${keys.map(w => `<button class="${w === db.wo ? 'on' : ''}" data-w="${esc(w)}">${esc(w)}</button>`).join('')}<button class="edit" id="goplan">${ICON.note}Программа</button></div>
   <div class="session" id="session"></div>
   <p class="hintl">${esc(ph.hint)}</p>
-  <div id="list">${items.map(it => `<div class="ex" id="ex-${esc(it.orig || it.id)}" data-slot="${esc(it.orig || it.id)}"></div>`).join('')}</div>
+  <div id="list">${items.map((it, i) => (it.blk === 'core' && (i === 0 || items[i - 1].blk !== 'core') ? coreHead(it) : '') + `<div class="ex${it.blk ? ' inblk' : ''}" id="ex-${esc(it.orig || it.id)}" data-slot="${esc(it.orig || it.id)}"></div>`).join('')}</div>
   ${items.length ? '' : '<p class="empty">В этой тренировке нет упражнений — добавь их в «Программе».</p>'}
   <div class="card kneec"><div class="h">Колени сегодня</div><div class="r"><input type="range" id="knee" min="0" max="10" value="${c.knee ?? 0}" aria-label="Боль в коленях"><b class="n" id="kneev">${c.knee ?? '—'}</b></div><small>${c.knee === null ? 'Сдвинь ползунок — даже если 0.' : '0 — ничего не чувствую. Выше 3 — вес на ноги не повышаем.'}</small></div>
   <button class="btn" id="finish" style="margin-top:18px">Завершить тренировку</button>
@@ -84,10 +87,10 @@ function renderCard(it, justK) {
   const tlab = e.t === 'c' ? esc(it.r) + ' мин' : e.t === 't' ? it.s + ' × ' + esc(it.r) + ' с' : it.s + ' × ' + esc(it.r) + ' повт';
   const best = Ls && e.t === 'w' ? L.bestSet('w', db.sessions.flatMap(s => s.entries[it.id] || [])) : null;
   const pic = photoFor(it.id, e), note = P.noteOf(db, it.id);
-  el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '');
+  el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '') + (it.blk ? ' inblk' : '');
   let h = `${pic ? `<div class="exp"><img src="${pic}" alt="" loading="lazy"></div>` : ''}
   <button class="info" data-act="tech">${ICON.info}Техника</button>
-  <div class="exh"><div class="t"><div class="no">${idxOf(slot) + 1} / ${WK.itemsFor(k).length}</div>
+  <div class="exh"><div class="t"><div class="no">${it.blk === 'core' && e.cr ? ROLE[e.cr] : `${idxOf(slot) + 1} / ${WK.itemsFor(k).length}`}</div>
    <h3>${esc(e.n)}${e.knee ? '<span class="kn">колени</span>' : ''}<span class="okb">✓ Готово</span></h3>
    <div class="tg">${tlab}${best ? ' · рекорд ' + best.a + '×' + best.b : ''}</div>
    ${it.orig ? `<div class="swp">вместо «${esc(P.exOf(db, it.orig).n)}» · <button data-act="unswap">вернуть</button></div>` : ''}</div></div>
@@ -117,7 +120,7 @@ function rowOpen(e, x, j, isNext, just, n, Ls) {
   const tg = f => !x.done && !(f === 'w' ? x.edA : x.edB) ? ' tgt' : '';
   const stp = (f, val, unit, mode, ph) => `<div class="stp"><button data-act="${f}m" aria-label="Меньше">−</button><label><input class="n${tg(f)}" inputmode="${mode}" data-f="${f === 'w' ? 'a' : 'b'}" value="${val}" placeholder="${ph}" aria-label="${unit}, подход ${j + 1}"><span>${unit}</span></label><button data-act="${f}p" aria-label="Больше">+</button></div>`;
   return `<div class="set x ${x.done ? 'done' : ''} ${isNext ? 'nx' : ''} ${just ? 'just' : ''}" data-k="${j}"><span class="si">${j + 1}</span>
-  <div class="ins">${e.t === 'w' ? stp('w', x.a, 'кг', 'decimal', 'вес') : ''}${stp('r', x.b, e.t === 'w' ? 'повт' : UNIT_T[e.t].slice(0, 4), 'numeric', '—')}
+  <div class="ins">${e.t === 'w' ? stp('w', x.a, 'кг', 'decimal', 'вес') : ''}${stp('r', x.b, UNIT_S[e.t], 'numeric', '—')}
   <small class="was">${wasStr(e, Ls, j)}${tg('r') ? (wasStr(e, Ls, j) ? ' · ' : '') + 'жёлтым — цель, сделал меньше — поправь' : ''}</small></div>
   <div class="side"><button class="ck big" data-act="ck" aria-pressed="${x.done}" aria-label="Подход ${j + 1} выполнен">${CK}</button>${!x.done && n > 1 ? `<button class="rmset" data-act="del" aria-label="Убрать подход">${ICON.x}</button>` : ''}</div></div>`;
 }
@@ -204,15 +207,31 @@ function tapCheck(k, it, j, x, e) {
     const rows = WK.rowsFor(k, it), allDone = rows.every(r => r.done);
     renderCard(itemBySlot(slot), j);
     updSession();
+    const [ph] = WK.splitKey(k), rest = WK.restFor(it, ph), circ = WK.circuitNext(k, it);
+    if (circ) {
+      // круг: следующее упражнение круга; отдых только после последнего в раунде
+      const name = P.exOf(state.db, circ.id).n;
+      goTo(circ, 350, !it.ss);
+      if (it.ss) {stopRest(); toast('Дальше без отдыха: ' + name);}
+      else startRest(rest, 'Круг готов · далее: ' + name);
+      return;
+    }
     const nxt = nextUp(k, slot);
     if (allDone) {
       toast('✓ ' + e.n + ' — готово');
-      if (nxt) setTimeout(() => {const n = $('#ex-' + CSS.escape(nxt.orig || nxt.id)); if (n) n.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});}, 450);
+      if (nxt) goTo(nxt, 450);
     }
-    const [ph] = WK.splitKey(k), rest = WK.restFor(it, ph);
     const label = allDone ? (nxt ? 'Далее: ' + P.exOf(state.db, nxt.id).n : 'Последнее упражнение позади') : `Далее: подход ${j + 2} · ${valStr(e, rows[j + 1] || x)}`;
     if (rest) startRest(allDone ? Math.min(rest, 90) : rest, label); else stopRest();
   } else rerender(it);
+}
+
+function goTo(it, delay, toSet) {
+  setTimeout(() => {
+    const card = $('#ex-' + CSS.escape(it.orig || it.id));
+    const n = toSet && card ? card.querySelector('.set.nx') || card : card;
+    if (n) n.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: n === card ? 'start' : 'center'});
+  }, delay);
 }
 
 // Следующее незаконченное упражнение — ищем после текущего, затем с начала.

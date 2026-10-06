@@ -53,3 +53,29 @@ test('no power rack: barbell work is limited to moves you can start from the flo
   const ok = new Set(['backh', 'hams', 'glutes', 'biceps']);
   for (const [id, e] of Object.entries(EX)) if (e.img === 'barbell') assert.ok(ok.has(e.g), `${id}: нужна рама — делай в Смите`);
 });
+
+test('every workout ends with a 3-part core circuit: stability → flexion → anti-rotation/side', async () => {
+  const {toItem} = await import('../js/program.js');
+  const ORDER = ['stab', 'flex', 'side'];
+  for (const [ph, p] of Object.entries(W)) for (const [wo, raw] of Object.entries(p.w)) {
+    const items = raw.map(toItem), core = items.filter(x => x.blk === 'core');
+    assert.equal(core.length, 3, `${ph}/${wo}: 3 упражнения пресса`);
+    assert.deepEqual(core.map(x => EX[x.id].cr), ORDER, `${ph}/${wo}: порядок`);
+    assert.deepEqual(items.slice(-3).map(x => x.id), core.map(x => x.id), `${ph}/${wo}: пресс в конце`);
+    assert.deepEqual(core.map(x => !!x.ss), [true, true, false], `${ph}/${wo}: круг`);
+    assert.equal(new Set(core.map(x => x.s)).size, 1, `${ph}/${wo}: одинаковое число кругов`);
+  }
+});
+
+test('core work is varied: no exercise repeats within a phase week more than twice', () => {
+  for (const [ph, p] of Object.entries(W)) {
+    const n = {};
+    Object.values(p.w).flat().filter(x => x[4] && x[4].blk === 'core').forEach(x => n[x[0]] = (n[x[0]] || 0) + 1);
+    Object.entries(n).forEach(([id, c]) => assert.ok(c <= 2, `${ph}: ${id} ×${c}`));
+    if (Object.keys(p.w).length >= 4) assert.ok(Object.keys(n).length >= 7, `${ph}: разнообразие ${Object.keys(n).length}`);
+  }
+});
+
+test('every core exercise has a role', () => {
+  for (const [id, e] of Object.entries(EX)) if (e.g === 'core') assert.ok(['stab', 'flex', 'side'].includes(e.cr), id);
+});

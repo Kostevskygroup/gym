@@ -217,3 +217,20 @@ test('marking a set on a stale draft is refused', () => {
   assert.equal(WK.markSet(K, it, 1, true, t0 + 24 * 3600e3), false);
   assert.equal(WK.rowsFor(K, it)[1].done, false);
 });
+
+test('circuit: after a set, go to the next exercise in the circuit, then back to the first', () => {
+  const items = WK.itemsFor(K), core = items.filter(x => x.blk === 'core');
+  assert.equal(core.length, 3);
+  assert.equal(WK.circuitNext(K, core[0]).id, core[1].id);
+  assert.equal(WK.circuitNext(K, core[1]).id, core[2].id);
+  const [a, b, c] = core;
+  [a, b, c].forEach(x => {WK.editField(K, x, 0, 'a', 10); WK.markSet(K, x, 0, true);});
+  assert.equal(WK.circuitNext(K, c).id, a.id);
+  assert.equal(WK.circuitNext(K, items[1]), null);
+});
+
+test('rest: core circuit rests only after the last exercise of the round', () => {
+  const core = WK.itemsFor(K).filter(x => x.blk === 'core');
+  assert.equal(WK.restFor(core[0], 'p2'), 0);
+  assert.equal(WK.restFor(core[2], 'p2'), 60);
+});

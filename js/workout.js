@@ -120,9 +120,27 @@ export function undoCommit(s, k, keep, prevAch) {
   if (keep) patchDraft(k, () => keep);
 }
 
+// Круг/суперсет: подряд идущие упражнения, связанные флагом ss.
+function groupOf(items, i) {
+  let a = i, b = i;
+  while (a > 0 && items[a - 1].ss) a--;
+  while (b < items.length - 1 && items[b].ss) b++;
+  return items.slice(a, b + 1);
+}
+// Куда идти после подхода в круге: следующее упражнение круга с незаконченным подходом.
+export function circuitNext(k, it) {
+  const items = itemsFor(k), i = items.findIndex(x => (x.orig || x.id) === (it.orig || it.id));
+  const g = groupOf(items, i);
+  if (g.length < 2) return null;
+  const j = g.findIndex(x => x === items[i]);
+  const order = [...g.slice(j + 1), ...g.slice(0, j + 1)];
+  return order.find(x => !exDone(k, x)) || null;
+}
+
 export function restFor(it, phase) {
   const e = P.exOf(state.db, it.id);
   if (e.g === 'cardio' || it.ss) return 0;
+  if (it.blk === 'core' || e.g === 'core') return 60;
   if (e.t === 't') return 60;
   if (phase === 'p1') return 75;
   return ['quads', 'hams', 'glutes', 'chest', 'backv', 'backh', 'press'].includes(e.g) ? 120 : 90;
