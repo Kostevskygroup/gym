@@ -19,7 +19,7 @@ export function itemsFor(k) {const [ph, wo] = splitKey(k); return P.itemsOf(stat
 
 export function optsFor(k, it, now = new Date()) {
   const [ph] = splitKey(k), e = P.exOf(state.db, it.id);
-  return {sessions: state.db.sessions, id: it.id, t: e.t, sets: it.s, reps: it.r, step: P.stepOf(state.db, it.id), phase: ph, now, knee: e.knee};
+  return {sessions: state.db.sessions, id: it.id, t: e.t, sets: it.s, reps: it.r, step: P.stepOf(state.db, it.id), phase: ph, now, knee: kneeTracked() && e.knee, kneeLast: L.kneeLast(state.db.sessions, id => P.exOf(state.db, id))};
 }
 export const aimFor = (k, it) => L.aim(optsFor(k, it));
 export const rowsFor = (k, it) => draft(k).ex[it.id] || L.defaults(optsFor(k, it));
@@ -103,7 +103,8 @@ export function buildSession(k, now = Date.now()) {
   const out = Object.fromEntries(Object.entries(entries).map(([id, rows]) => {const t = P.exOf(state.db, id).t; return [id, rows.map(x => ({a: t === 'w' ? +x.a : null, b: +x.b}))];}));
   return {id: end, date: new Date(end).toISOString(), phase, wo, knee: c.knee, entries: out, dur, ...(swaps ? {swaps} : {})};
 }
-export const needsKnee = k => {const s = buildSession(k); return draft(k).knee === null && !!s && Object.keys(s.entries).some(id => P.exOf(state.db, id).knee);};
+export const kneeTracked = () => !state.db.settings || state.db.settings.knee !== false;
+export const needsKnee = k => {const s = buildSession(k); return kneeTracked() && draft(k).knee === null && !!s && Object.keys(s.entries).some(id => P.exOf(state.db, id).knee);};
 
 // Сохраняет тренировку. Черновик удаляется только если запись прошла.
 export function commit(k, s) {

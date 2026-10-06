@@ -2,7 +2,11 @@
 // Пока данные не прочитаны успешно, запись запрещена — пустые данные не затрут историю.
 import {normalizeDB, normalizeDR, emptyDB, emptyDraft} from './backup.js';
 
-const K = {db: 'gym.db', prev: 'gym.db.prev', dr: 'gym.draft', snap: 'gym.db.before-import'};
+// Профили: у основного — прежние ключи (совместимость), у остальных — свои с суффиксом @id.
+const PROF = 'gym.profiles', ACTIVE = 'gym.active', MAIN = 'main', NAME_MAX = 24;
+const keysFor = pid => pid === MAIN ? {db: 'gym.db', prev: 'gym.db.prev', dr: 'gym.draft', snap: 'gym.db.before-import'}
+  : {db: `gym.db@${pid}`, prev: `gym.db.prev@${pid}`, dr: `gym.draft@${pid}`, snap: `gym.db.before-import@${pid}`};
+let K = keysFor(MAIN);
 const LEGACY = {db: 'gym-db', dr: 'gym-draft3'};
 
 export const state = {db: emptyDB(), dr: {}, ok: false, warn: null, saveFailed: false, memOnly: false};
@@ -29,6 +33,8 @@ function parse(key) {
 export function load() {
   state.warn = null;
   state.saveFailed = false;
+  const pid = activeProfile();
+  K = keysFor(pid);
   let raw = parse(K.db);
   if (raw === undefined || (raw && !Array.isArray(raw.sessions))) {
     const prev = parse(K.prev);
@@ -36,12 +42,12 @@ export function load() {
     state.warn = raw ? 'Данные были повреждены — восстановлена предыдущая версия.' : 'Данные повреждены. Сырая копия сохранена — восстанови из резервной копии.';
     if (!raw) {LS.set(`${K.db}.corrupt.${Date.now()}`, LS.get(K.db) || ''); state.dr = normalizeDR(parse(K.dr)); state.ok = false; return;}
   }
-  if (raw === null && !state.warn) {
+  if (raw === null && !state.warn && pid === MAIN) {
     const old = parse(LEGACY.db);
     if (old && Array.isArray(old.sessions)) raw = old;
   }
   state.db = normalizeDB(raw);
-  const dr = parse(K.dr) ?? parse(LEGACY.dr);
+  const dr = parse(K.dr) ?? (pid === MAIN ? parse(LEGACY.dr) : null);
   state.dr = normalizeDR(dr);
   state.ok = true;
   state.memOnly = !storageWorks();
@@ -92,3 +98,43 @@ export function undoSnapshot() {
   return true;
 }
 export const hasSnapshot = () => !!LS.get(K.snap);
+
+// ---- профили ----
+function readList() {
+  let list = [];
+  try {list = JSON.parse(LS.get(PROF) || '[]');} catch (e) {list = [];}
+  list = Array.isArray(list) ? list.filter(p => p && typeof p.id === 'string' && typeof p.name === 'string') : [];
+  if (!list.some(p => p.id === MAIN)) list.unshift({id: MAIN, name: 'Я'});
+  return list;
+}
+export const profiles = () => readList();
+export function activeProfile() {const id = LS.get(ACTIVE); return id && readList().some(p => p.id === id) ? id : MAIN;}
+const cleanName = n => {const s = String(n || '').trim().slice(0, NAME_MAX); if (!s) throw new Error('Введи имя'); return s;};
+
+export function switchProfile(pid) {
+  if (!readList().some(p => p.id === pid)) return false;
+  LS.set(ACTIVE, pid);
+  load();
+  return true;
+}
+export function addProfile(name, opts = {}) {
+  const n = cleanName(name), id = 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+  LS.set(PROF, JSON.stringify([...readList(), {id, name: n}]));
+  switchProfile(id);
+  setDB({...state.db, settings: {name: n, knee: opts.knee !== false}});
+  return id;
+}
+export function renameProfile(pid, name) {
+  const n = cleanName(name);
+  LS.set(PROF, JSON.stringify(readList().map(p => p.id === pid ? {...p, name: n} : p)));
+  if (pid === activeProfile()) setDB({...state.db, settings: {...state.db.settings, name: n}});
+}
+export function deleteProfile(pid) {
+  if (pid === MAIN || !readList().some(p => p.id === pid)) return false;
+  const ks = Object.values(keysFor(pid));
+  try {Object.keys(localStorage).filter(k => k.endsWith('@' + pid) || k.includes('@' + pid + '.')).forEach(k => LS.del(k));} catch (e) {}
+  ks.forEach(LS.del);
+  LS.set(PROF, JSON.stringify(readList().filter(p => p.id !== pid)));
+  if (LS.get(ACTIVE) === pid) switchProfile(MAIN);
+  return true;
+}

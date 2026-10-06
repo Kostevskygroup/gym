@@ -185,3 +185,10 @@ test('normalizeDB rejects inherited keys as equipment', () => {
   const db = normalizeDB({custom: {u_x: {n: 'X', img: 'constructor', t: 'w', g: 'hams'}}});
   assert.equal(db.custom.u_x, undefined);
 });
+
+test('normalizeDB keeps profile settings and dismissed recommendations', () => {
+  const db = normalizeDB({settings: {name: 'Ксюша', knee: false, junk: 1}, dismissed: {'plateau:lat': '2026-10-01T00:00:00Z', bad: 'x'}});
+  assert.deepEqual(db.settings, {name: 'Ксюша', knee: false});
+  assert.deepEqual(db.dismissed, {'plateau:lat': '2026-10-01T00:00:00Z'});
+  assert.deepEqual(normalizeDB({}).settings, {name: '', knee: true});
+});

@@ -1,4 +1,7 @@
 // Свои фото упражнений (старт/финиш, табличка с тренажёра) — в IndexedDB на телефоне.
+// У каждого профиля свои фото (старые фото без профиля — у основного).
+import {activeProfile} from './store.js';
+const mine = p => (p.pid || 'main') === activeProfile();
 const NAME = 'gym-photos', STORE = 'photos', MAX = 1280, QUALITY = 0.82;
 
 // Соединение переоткрывается, если iOS его закрыла (после сна или нехватки памяти).
@@ -28,14 +31,14 @@ async function tx(mode, fn, retry = true) {
   });
 }
 
-export const listPhotos = ex => tx('readonly', s => s.index('ex').getAll(ex)).then(a => (a || []).sort((x, y) => x.ts - y.ts));
-export const allPhotos = () => tx('readonly', s => s.getAll()).then(a => a || []);
+export const listPhotos = ex => tx('readonly', s => s.index('ex').getAll(ex)).then(a => (a || []).filter(mine).sort((x, y) => x.ts - y.ts));
+export const allPhotos = () => tx('readonly', s => s.getAll()).then(a => (a || []).filter(mine));
 export const delPhoto = id => tx('readwrite', s => s.delete(id));
 export const photoCounts = () => allPhotos().then(a => a.reduce((m, p) => ({...m, [p.ex]: (m[p.ex] || 0) + 1}), {}));
 
 export async function addPhoto(ex, file, label = '') {
   const blob = await resize(file);
-  return tx('readwrite', s => s.add({ex, label, ts: Date.now(), blob}));
+  return tx('readwrite', s => s.add({ex, label, ts: Date.now(), blob, pid: activeProfile()}));
 }
 export const setLabel = (p, label) => tx('readwrite', s => s.put({...p, label}));
 
@@ -68,7 +71,7 @@ export async function importPhotos(list) {
   for (const p of list) {
     if (have.has(p.ex + '|' + p.ts)) continue;
     const blob = await (await fetch(p.data)).blob();
-    await tx('readwrite', s => s.add({ex: p.ex, ts: p.ts, label: p.label || '', blob}));
+    await tx('readwrite', s => s.add({ex: p.ex, ts: p.ts, label: p.label || '', blob, pid: activeProfile()}));
     n++;
   }
   return n;

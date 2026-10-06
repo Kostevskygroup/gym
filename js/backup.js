@@ -7,7 +7,7 @@ const PHASES = ['p1', 'p2', 'p3'];
 const TYPES = ['w', 'r', 't', 'c'];
 const STEPS = [0.5, 1, 1.25, 2, 2.5, 4, 5, 10];
 
-export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, updatedAt: 0});
+export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, settings: {name: '', knee: true}, dismissed: {}, updatedAt: 0});
 
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const okDate = d => typeof d === 'string' && Number.isFinite(Date.parse(d));
@@ -94,6 +94,8 @@ export function normalizeDB(raw) {
   db.custom = normCustom(d.custom);
   db.exs = normExs(d.exs);
   db.lastBackup = okDate(d.lastBackup) ? d.lastBackup : null;
+  if (obj(d.settings)) db.settings = {name: typeof d.settings.name === 'string' ? d.settings.name.trim().slice(0, 24) : '', knee: d.settings.knee !== false};
+  if (obj(d.dismissed)) Object.entries(d.dismissed).forEach(([k, v]) => {if (okDate(v)) db.dismissed[k] = v;});
   db.updatedAt = Number.isFinite(+d.updatedAt) ? +d.updatedAt : 0;
   return db;
 }
@@ -122,7 +124,7 @@ export function parseBackup(text) {
 // Слияние: ничего не удаляет. Записи объединяются, настройки остаются свои.
 export function mergeDB(local, inc) {
   if (isEmpty(local)) {
-    const db = {...inc, custom: {...inc.custom, ...local.custom}, exs: {...inc.exs, ...local.exs}, plan: local.plan || inc.plan, goal: local.goal ?? inc.goal, lastBackup: local.lastBackup || inc.lastBackup};
+    const db = {...inc, custom: {...inc.custom, ...local.custom}, exs: {...inc.exs, ...local.exs}, plan: local.plan || inc.plan, goal: local.goal ?? inc.goal, lastBackup: local.lastBackup || inc.lastBackup, settings: local.settings && local.settings.name ? local.settings : inc.settings, dismissed: {...inc.dismissed, ...local.dismissed}};
     return {db, added: {sessions: inc.sessions.length, bw: inc.bw.length, waist: inc.waist.length}};
   }
   const ids = new Set(local.sessions.map(s => s.id)), bwD = new Set(local.bw.map(x => x.date)), waD = new Set(local.waist.map(x => x.date));
@@ -139,6 +141,8 @@ export function mergeDB(local, inc) {
     exs: {...inc.exs, ...local.exs},
     plan: local.plan || inc.plan,
     goal: local.goal ?? inc.goal,
+    settings: local.settings && local.settings.name ? local.settings : inc.settings,
+    dismissed: {...inc.dismissed, ...local.dismissed},
   };
   return {db, added: {sessions: newS.length, bw: newB.length, waist: newW.length}};
 }
