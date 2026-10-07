@@ -204,6 +204,17 @@ export function sanity(t, x, lastW) {
 // Колени в последний день ног (где указано), или null.
 // Нагрузка упражнения на суставы (старые данные — только колени).
 export const exLoad = e => e.load || (e.risky ? {knee: 2} : e.knee ? {knee: 1} : {});
+// Суставы, которые упражнение нагружает сильно (≥ 2).
+export const heavyJoints = e => Object.entries(exLoad(e)).filter(([, v]) => v >= 2).map(([j]) => j);
+// «нагрузка: колени, спина» или '' — подпись в выборе и замене упражнения.
+export const loadTxt = e => {const hi = heavyJoints(e).map(j => JOINT_SHORT[j]).filter(Boolean); return hi.length ? 'нагрузка: ' + hi.join(', ') : '';};
+// Нагружает ли упражнение хоть один из отмеченных суставов (≥ 1).
+export const loadsAny = (e, joints) => joints.some(j => (exLoad(e)[j] || 0) >= 1);
+// Порядок замен: что уже делали → без нагрузки на отмеченные суставы → остальные (внутри — исходный порядок).
+export function rankAlts(ids, exOf, didBefore, joints) {
+  const key = id => (didBefore(id) ? 0 : 2) + (loadsAny(exOf(id), joints) ? 1 : 0);
+  return ids.map((id, i) => [id, key(id), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(x => x[0]);
+}
 // Боль в тренировке по суставам (старые записи — только колени).
 export const painOf = s => s.pain || (s.knee != null ? {knee: s.knee} : {});
 const loads = (s, exOf, j) => Object.keys(s.entries).some(id => (exLoad(exOf(id))[j] || 0) >= 1);

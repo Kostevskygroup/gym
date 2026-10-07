@@ -26,14 +26,35 @@ async function api(method, path, body, a) {
 }
 const key = async a => {if (!keyCache || keyCache.raw !== a.keyRaw) keyCache = {raw: a.keyRaw, key: await importKey(a.keyRaw)}; return keyCache.key;};
 
+// Техническая ошибка (криптография, сеть, JSON, сервер) → понятная фраза для экрана. Детали — только в консоль.
+const RELOGIN = 'Не удалось расшифровать данные — выйди из облака и войди заново';
+export function humanErr(e) {
+  const m = String((e && e.message) || e || '');
+  if (!e) return 'Что-то пошло не так';
+  if (e.offline || /fetch|network|load failed|сет[иь]/i.test(m)) return 'Нет связи с сервером';
+  if (e.status === 401) return 'Пароль изменился или аккаунт удалён — войди заново';
+  if (e.status >= 500) return 'Сервер не отвечает — попробуй позже';
+  if (e.status) return m;
+  const dom = typeof DOMException !== 'undefined' && e instanceof DOMException;
+  if (dom || /AES|key data|decrypt|cipher|расшифровать|формат данных/i.test(m)) return RELOGIN;
+  if (e instanceof SyntaxError || /JSON|token/i.test(m)) return 'Сервер ответил непонятно — попробуй позже';
+  return m || 'Что-то пошло не так';
+}
+// Что предложить сделать при ошибке облака: войти заново или просто повторить.
+export const errAction = err => /войди заново/.test(String(err || '')) ? 'relogin' : 'retry';
+
 export async function register(name, password, invite) {
   const acc = await deriveAccount(name, password);
   const {data} = await api('POST', '/v1/register', {userId: acc.userId, token: acc.token, invite: String(invite || '').trim()});
   LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, admin: data.admin === true, version: 0, at: null, err: null});
   clearPendingInvite();
+  // код из адреса больше не нужен — убираем его из строки только теперь (до этого он переживает установку на экран «Домой»)
+  try {const u = new URL(location.href); if (u.searchParams.has('invite')) {u.searchParams.delete('invite'); history.replaceState(null, '', u.pathname + u.search + u.hash);}} catch (e) {}
   emit();
   return syncNow();
 }
+// Облако включено и работает: показывать «сделай копию» не нужно.
+export const cloudOk = () => {const a = account(); return !!a && !a.err;};
 export async function login(name, password) {
   const acc = await deriveAccount(name, password);
   const {data} = await api('POST', '/v1/login', null, acc);
@@ -60,7 +81,14 @@ export async function listInvites() {
   return data.invites || [];
 }
 export const appUrl = () => location.origin + location.pathname.replace(/[^/]*$/, '');
-export const inviteText = (code) => `Привет! Это «Мой зал» — наше приложение для тренировок.\n\n1. Открой ссылку в Safari: ${appUrl()}\n2. Нажми «Поделиться» → «На экран Домой».\n3. Открой с экрана «Домой», ответь на пару вопросов — программа соберётся сама.\n4. Включи облако: код приглашения ${code} (действует 7 дней, один раз).`;
+export const inviteLink = code => `${appUrl()}?invite=${encodeURIComponent(code)}`;
+// Сообщение приглашённому: рабочая ссылка с кодом и код отдельной строкой (iOS может потерять ?invite= при установке).
+export const inviteText = code => `Привет! Ставлю тебе «Мой зал» — наше приложение для зала.\n\nОткрой в Safari: ${inviteLink(code)}\nОно само подскажет, как поставить иконку на экран «Домой», и соберёт программу под тебя.\n\nКод приглашения: ${code} — понадобится, когда приложение попросит включить облако. Действует 7 дней, один раз.`;
+// Созданные с этого телефона коды целиком (сервер отдаёт их замаскированными) — чтобы отправить ещё раз, если «Поделиться» сорвалось.
+const INV = () => 'gym.invites@' + activeProfile(), INV_MAX = 10;
+export const localInvites = () => {const l = LS.get(INV()); return Array.isArray(l) ? l.filter(i => i && typeof i.code === 'string') : [];};
+export const rememberInvite = ({code, exp}) => LS.set(INV(), [{code, exp}, ...localInvites().filter(i => i.code !== code)].slice(0, INV_MAX));
+export const forgetInvite = code => LS.set(INV(), localInvites().filter(i => i.code !== code));
 export function logout() {LS.del(KEY()); keyCache = null; emit();}
 
 // Подтянуть с сервера, слить, отправить своё. Повторяет при одновременной записи с другого телефона.
@@ -86,8 +114,8 @@ export function syncNow() {
       await syncPhotos(a, k).catch(e => console.warn('photo sync', e));
       return account();
     } catch (e) {
-      save({err: e.message});
-      if (e.status === 401) save({err: 'Пароль изменился или аккаунт удалён — войди заново'});
+      console.error('sync', e);
+      save({err: humanErr(e)});
       throw e;
     } finally {busy = null;}
   })();

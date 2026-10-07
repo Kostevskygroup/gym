@@ -37,6 +37,8 @@ let cur = 'home';
 const scrollPos = {};
 
 export function go(v, toCurrent, focus) {
+  // первый запуск: пока анкета не пройдена, есть только экран приветствия
+  if (document.body.classList.contains('onb') && v !== 'home') v = 'home';
   scrollPos[cur] = $('#app').scrollTop;
   cur = v;
   $$('nav button').forEach(x => x.classList.toggle('on', x.dataset.v === v));
@@ -78,6 +80,8 @@ function bindGlobal() {
   addEventListener('gym:profile', onProfile);
   // с другого телефона пришли новые данные — перерисовать экран (кроме идущей тренировки)
   addEventListener('gym:remote', () => {if (cur !== 'train' && !sheetOpen()) go(cur);});
+  // браузер разрешил установку (Android/десктоп) — на главном экране появляется строка «Установить»
+  addEventListener('gym:install', () => {if (cur === 'home' && !sheetOpen()) go('home');});
   addEventListener('gym:savefail', () => toast('Не сохранилось — на телефоне закончилось место. Сохрани копию в «Тело»'));
   onFinishNav(go);
   onPlanClose(() => {if (cur === 'train') renderTrain();});
@@ -85,10 +89,11 @@ function bindGlobal() {
 
 function start() {
   if (!storageWorks()) $('#warn').classList.add('on');
-  // …/gym/?invite=ZAL-XXXX-XXXX — запоминаем код и убираем его из адреса
+  // …/gym/?invite=ZAL-XXXX-XXXX — запоминаем код. Из адреса он уходит только после регистрации (sync.js):
+  // так он переживает установку на экран «Домой», если iOS скопирует адрес в иконку.
   try {
-    const u = new URL(location.href), inv = u.searchParams.get('invite');
-    if (inv) {setPendingInvite(inv); u.searchParams.delete('invite'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);}
+    const inv = new URL(location.href).searchParams.get('invite');
+    if (inv) setPendingInvite(inv);
   } catch (e) {}
   bindGlobal();
   registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));

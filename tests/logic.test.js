@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {
   topRep, lowRep, weekStart, planWeek, recPhase, gapDays, nextWo, lastFor, setScore, prMap,
-  vol, streak, floorTo, aim, defaults, warmups, warmPlan, alternatives, sanity, kneeAvg,
+  vol, streak, floorTo, aim, defaults, warmups, warmPlan, alternatives, sanity, kneeAvg, loadTxt, loadsAny, rankAlts,
 } from '../js/logic.js';
 import {EX} from '../js/data/exercises.js';
 
@@ -309,4 +309,21 @@ test('painLast / painAvg per joint', async () => {
   assert.equal(painLast(s, ex, 'knee'), 6);
   assert.equal(painAvg(s, ex, 'shoulder', 3), 3);
   assert.equal(painLast(s, ex, 'wrist'), null);
+});
+
+test('loadTxt names only heavily loaded joints; loadsAny sees light load too', () => {
+  assert.equal(loadTxt({load: {knee: 2, back: 1}}), 'нагрузка: колени');
+  assert.equal(loadTxt({load: {knee: 2, back: 2}}), 'нагрузка: колени, спина');
+  assert.equal(loadTxt({load: {back: 1}}), '');
+  assert.equal(loadTxt({knee: 1}), '');
+  assert.equal(loadTxt({risky: 1}), 'нагрузка: колени');
+  assert.equal(loadsAny({load: {back: 1}}, ['back']), true);
+  assert.equal(loadsAny({load: {back: 1}}, ['knee']), false);
+});
+
+test('rankAlts: done before → no load on tracked joints → the rest, stable inside each bucket', () => {
+  const ex = {a: {load: {knee: 1}}, b: {load: {}}, c: {load: {knee: 2}}, d: {load: {}}, e: {load: {knee: 1}}};
+  const did = id => id === 'c' || id === 'd';
+  assert.deepEqual(rankAlts(['a', 'b', 'c', 'd', 'e'], id => ex[id], did, ['knee']), ['d', 'c', 'b', 'a', 'e']);
+  assert.deepEqual(rankAlts(['a', 'b'], id => ex[id], () => false, []), ['a', 'b']);
 });

@@ -5,8 +5,9 @@ import {stats, checkAch} from '../stats.js';
 import {parseBackup, mergeDB, makeBackup, tombstone, untomb} from '../backup.js';
 import {exportPhotos, importPhotos} from '../photos.js';
 import {saveFile, pickFile, persistStorage, pendingUpdate} from '../platform.js';
-import {esc, fmtD, fmtN, signed, NNBSP, r1, plural, ymd, num, DAY} from '../format.js';
+import {esc, fmtD, fmtN, signed, NNBSP, r1, plural, ymd, num, DAY, ago} from '../format.js';
 import {chart} from './chart.js';
+import {account, cloudOk} from '../sync.js';
 
 // Имя профиля в названии файла: копии разных людей не перепутать.
 const fileTag = () => {const n = state.db.settings && state.db.settings.name; return n ? n.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 20) + '-' : '';};
@@ -37,11 +38,16 @@ export function renderBody(focus) {
 
 const persistTxt = () => persisted === 'yes' ? '✓ Телефон не будет очищать эти данные сам' : persisted === 'no' ? 'Телефон может очистить данные при нехватке места — делай копии' : '';
 
+// С включённым облаком копия — страховка на всякий случай, а не единственная защита данных.
 function backupCard(db) {
+  const a = account(), cloud = cloudOk();
+  const lead = cloud
+    ? `<p><b>Данные в облаке</b> · ${a.at ? 'синхронизировано ' + ago(a.at) : 'синхронизация…'}. Файл-копия — на всякий случай, например перед сменой телефона.</p>`
+    : `<p>Все тренировки, замеры, заметки и твои фото хранятся только на этом телефоне. <b>Если удалить иконку с экрана «Домой» или сменить телефон — без копии всё пропадёт.</b> Сохраняй копию в «Файлы» (iCloud Drive) раз в пару недель.</p>`;
   return `<div class="sec" id="backup"><b>Резервная копия</b><span>${db.lastBackup ? 'Последняя копия: ' + fmtD(db.lastBackup) : 'Копий ещё не было'}</span></div><div class="card bk">
-  <p>Все тренировки, замеры, заметки и твои фото хранятся только на этом телефоне. <b>Если удалить иконку с экрана «Домой» или сменить телефон — без копии всё пропадёт.</b> Сохраняй копию в «Файлы» (iCloud Drive) раз в пару недель.</p>
+  ${lead}
   <p class="mu" id="pstat">${persistTxt()}</p>
-  <button class="btn" id="bexp">Сохранить копию файлом</button>
+  <button class="btn${cloud ? ' s2' : ''}" id="bexp">Сохранить копию файлом</button>
   <div class="bkl"><button id="bimp">Восстановить из файла${ICON.chev}</button><button id="bpaste">Вставить текст${ICON.chev}</button><button id="bcopy">Скопировать текстом — без фото${ICON.chev}</button></div></div>
   ${pendingUpdate() ? '<button class="btn" style="margin-top:12px" id="bupd">Обновить приложение</button>' : ''}`;
 }

@@ -10,6 +10,7 @@ import {keepAwake, haptic} from '../platform.js';
 import {stopRest} from '../timer.js';
 import {planWeek} from '../logic.js';
 import {backupDue} from '../backup.js';
+import {cloudOk} from '../sync.js';
 
 let go = () => {};
 export const onFinishNav = fn => {go = fn;};
@@ -25,14 +26,19 @@ export function finish(k) {
 }
 
 const JQ = {knee: 'Как колени сегодня?', back: 'Как спина сегодня?', shoulder: 'Как плечи сегодня?', elbow: 'Как локти сегодня?', wrist: 'Как запястья сегодня?', neck: 'Как шея сегодня?', hip: 'Как тазобедренные сегодня?', ankle: 'Как голеностоп сегодня?'};
-// По очереди про каждый отслеживаемый сустав, который нагружала тренировка.
-function askPains(k, joints, next) {
+// По очереди про каждый отслеживаемый сустав, который нагружала тренировка. Ответ не обязателен,
+// но закрыть шторку ✕ — значит не сохранить: об этом говорим сразу, чтобы тренировка не пропала молча.
+function askPains(k, joints, next, i = 0, n = joints.length) {
   if (!joints.length) {closeSheet(); next(); return;}
   const [j, ...rest] = joints;
-  openSheet(`${sheetHead(JQ[j] || 'Как самочувствие?', rest.length ? `ещё ${rest.length}` : '')}<div class="sc"><p class="hint2 lead">0 — ничего не чувствую, 10 — сильная боль. От этого зависит, повышать ли вес в упражнениях на этот сустав.</p>
-    <div class="knees">${Array.from({length: 11}, (_, i) => `<button data-v="${i}">${i}</button>`).join('')}</div></div>`, sh => {
-    sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {WK.setPain(k, j, +b.dataset.v); askPains(k, rest, next);});
-  });
+  let answered = false;
+  openSheet(`${sheetHead(JQ[j] || 'Как самочувствие?', `Вопрос ${i + 1} из ${n}`)}<div class="sc">
+    <div class="tb2 first"><p>0 — всё хорошо, 10 — сильная боль. Если выше 3, вес на этот сустав в следующий раз не повышаю.</p></div>
+    <div class="knees">${Array.from({length: 11}, (_, v) => `<button data-v="${v}">${v}</button>`).join('')}</div>
+    <button class="textbtn" data-skip>Не отвечать — сохранить без оценки</button></div>`, sh => {
+    sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {answered = true; WK.setPain(k, j, +b.dataset.v); askPains(k, rest, next, i + 1, n);});
+    sh.querySelector('[data-skip]').onclick = () => {answered = true; askPains(k, rest, next, i + 1, n);};
+  }, () => {if (!answered) toast('Тренировка не сохранена — нажми «Завершить» ещё раз');});
 }
 
 export function saveStale(k, after) {
@@ -85,7 +91,8 @@ function showDone(s, r, k) {
   const exOf = id => P.exOf(state.db, id), prs = prMap(state.db.sessions, exOf).get(s.id) || [];
   const v = vol(s, exOf), ns = Object.values(s.entries).reduce((a, e) => a + e.length, 0), imps = improvements(s);
   $('#d-title').textContent = prs.length ? (prs.length === 1 ? 'Новый рекорд!' : `${prs.length} ${plural(prs.length, 'новый рекорд', 'новых рекорда', 'новых рекордов')}!`) : 'Отличная работа!';
-  $('#d-sub').textContent = `${s.wo} · №${state.db.sessions.length}`;
+  const n = state.db.sessions.length;
+  $('#d-sub').textContent = `Тренировка ${s.wo} · ${n === 1 ? 'первая' : n + '-я'}`;
   $('#d-stats').innerHTML = [['Время', s.dur || 0, 'мин'], ['Объём', v >= 1000 ? r1(v / 1000) : Math.round(v), v >= 1000 ? 'т' : 'кг'], ['Подходов', ns, ''], ['Рекордов', prs.length, '']]
     .filter(([, n]) => n > 0)
     .map(([l, n, u]) => `<div><small>${l}</small><b class="n"><em data-cnt="${n}">0</em>${u ? `<span>${u}</span>` : ''}</b></div>`).join('');
@@ -95,7 +102,7 @@ function showDone(s, r, k) {
   $('#d-ach').innerHTML = r.fresh.length ? `<div class="sec"><b>Новые достижения</b><span>${r.fresh.length}</span></div><div class="medals">${r.fresh.map(x => {const a = ACH.find(y => y[2] === x); return `<div class="md"><span>${esc(a ? a[1] : '★')}</span>${esc(x)}</div>`;}).join('')}</div>` : '';
   $('#d-txt').textContent = report(s, prs);
   const due = backupDue(state.db);
-  $('#d-backup').style.display = due.due ? 'flex' : 'none';
+  $('#d-backup').style.display = due.due && !cloudOk() ? 'flex' : 'none';
   $('#doneov').classList.add('on');
   $('#doneov').scrollTop = 0;
   fadeRows($('#d-ach'));
@@ -107,7 +114,7 @@ function showDone(s, r, k) {
     WK.undoCommit(s, k, r.keep, r.prevAch);
     $('#doneov').classList.remove('on');
     go('train');
-    toast('Вернул тренировку — продолжай');
+    toast('Тренировка возвращена — продолжай');
   };
 }
 

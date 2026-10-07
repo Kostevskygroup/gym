@@ -51,7 +51,7 @@ main{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:calc(20px
 @keyframes pulse{50%{box-shadow:0 0 0 2px var(--bg),0 0 0 6px rgba(107,194,138,.25)}}
 
 /* общие иконки-линии */
-.tools svg,.prm svg,.iconbtn svg,.backup svg,.circ svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.addph svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tools svg,.prm svg,.iconbtn svg,.backup svg,.circ svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.addph svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg,.steps3 svg,.srch svg,.pw svg,.more summary svg,.tip .tx svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .pt{margin:4px 2px 16px}
 .pt small,.ptb{display:block;font:600 var(--fs-13)/1.35 var(--body);color:var(--mu);margin-bottom:4px}
@@ -66,6 +66,7 @@ main{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:calc(20px
 .eyebrow{display:block;font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
 .card{background:var(--card);box-shadow:var(--edge);border:0;border-radius:var(--r-lg);padding:16px}
 .empty{color:var(--mu);font:500 var(--fs-15)/1.4 var(--body);padding:24px 12px;text-align:center}
+.empty small{display:block;margin-top:4px;font:500 var(--fs-13)/1.4 var(--body);color:var(--dim)}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
 /* кнопки */
@@ -76,6 +77,8 @@ main{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:calc(20px
 .btn svg{width:20px;height:20px}
 a.btn{text-decoration:none}
 .textbtn{display:block;min-height:44px;margin:12px auto 0;padding:0 12px;font:600 var(--fs-15) var(--body);color:var(--mu)}
+.textbtn.inl{display:inline-flex;align-items:center;width:auto;margin:0;padding:0 8px;white-space:nowrap}
+.textbtn.danger{color:var(--bad)}
 .iconbtn{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--fill);box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--tx2);position:relative}
 .iconbtn::after{content:'';position:absolute;inset:-4px}
 .iconbtn svg{width:20px;height:20px}
@@ -83,8 +86,8 @@ a.btn{text-decoration:none}
 /* чипы-фильтры */
 .wos,.exl,.medals{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px;scroll-padding-inline:16px}
 /* затухание справа — только если ряд правда не помещается (класс ставит fadeRows) */
-.wos.ovf,.exl.ovf,.medals.ovf{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
-.wos::-webkit-scrollbar,.exl::-webkit-scrollbar,.medals::-webkit-scrollbar{display:none}
+.wos.ovf,.exl.ovf,.medals.ovf,.pgf.ovf{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
+.wos::-webkit-scrollbar,.exl::-webkit-scrollbar,.medals::-webkit-scrollbar,.pgf::-webkit-scrollbar{display:none}
 .wos button,.exl button,.chipsel button{position:relative;flex:none;height:36px;padding:0 14px;border-radius:var(--r-pill);background:transparent;box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--tx2);font:600 var(--fs-15)/1 var(--body);white-space:nowrap}
 .wos button::after,.exl button::after{content:'';position:absolute;inset:-4px -2px}
 .wos button.on,.exl button.on,.chipsel button.on{background:var(--tx);color:var(--bg);box-shadow:none}
@@ -94,7 +97,7 @@ a.btn{text-decoration:none}
 /* сегменты */
 .seg{display:flex;gap:2px;padding:3px;border-radius:var(--r-md);background:var(--s1)}
 .sheet .seg{background:var(--bg)}
-.seg button{flex:1;min-height:40px;border-radius:9px;color:var(--mu);font:600 var(--fs-15)/1.2 var(--body)}
+.seg button{flex:1;min-height:44px;border-radius:9px;color:var(--mu);font:600 var(--fs-15)/1.2 var(--body)}
 .seg button.on{background:var(--s3);color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06)}
 .seg button small{display:none}
 
@@ -103,6 +106,10 @@ a.btn{text-decoration:none}
 .bar.wk::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(100%/var(--n) - 2px),var(--s1) calc(100%/var(--n) - 2px) calc(100%/var(--n)))}
 
 /* ===== NAV ===== */
+/* первый запуск: экран целиком у приветствия и анкеты — вкладок и аватара нет */
+body.onb nav{display:none}
+body.onb #app{padding-bottom:0}
+body.onb .pt.has-av .avatar{display:none}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:10;font-family:var(--body);background:rgba(13,26,22,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);padding:6px 8px calc(4px + env(safe-area-inset-bottom))}
 nav .in{display:flex;max-width:600px;margin:0 auto}
 nav button{flex:1;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--dim);font:600 var(--fs-11)/1.2 var(--body)}
@@ -129,7 +136,7 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .live{width:100%;min-height:56px;display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 16px;text-align:left;border-radius:var(--r-lg);background:var(--okd);box-shadow:inset 0 0 0 1px rgba(107,194,138,.3)}
 .live .p{width:10px;height:10px;border-radius:50%;background:var(--ok);flex:none;animation:pulse 1.6s infinite}
 .live .t{flex:1;min-width:0}
-.live b{display:block;font:700 var(--fs-17)/1.25 var(--body)}
+.live b{display:block;font:700 var(--fs-17)/1.25 var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live small{font:500 var(--fs-13) var(--body);color:var(--tx2)}
 .live em{font:700 var(--fs-15) var(--body);font-style:normal;color:var(--ok)}
 .switch{margin-top:12px;padding:16px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge);border:0;color:var(--tx2);font:400 var(--fs-15)/1.45 var(--body)}
@@ -149,6 +156,13 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .backup{display:grid;grid-template-columns:36px 1fr 16px;gap:12px;align-items:center;width:100%;min-height:60px;margin-top:12px;padding:12px 16px;text-align:left;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge)}
 .backup .bi{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--acc-a)}
 .backup .bi svg{width:20px;height:20px;stroke:var(--acc)}
+.backup .bi.inv{background:var(--fill-2)}.backup .bi.inv svg{stroke:var(--tx2)}
+/* до первой тренировки: вместо кольца и шкалы — что за этап и три шага, как это работает */
+.hero.fresh{display:block}
+.hero.fresh .ht{margin-bottom:6px}
+.hero.fresh .bl{margin-top:0}
+.hero.fresh .eyebrow.how{margin:20px 0 8px}
+.hero.fresh .steps{background:var(--s2)}
 .backup b{display:block;font:600 var(--fs-15)/1.3 var(--body);color:var(--tx)}
 .backup small{font:500 var(--fs-13) var(--body);color:var(--mu)}
 .backup>svg{width:16px;height:16px;stroke:var(--dim)}
@@ -212,7 +226,7 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .okb{display:none;margin-left:6px;padding:3px 8px;border-radius:var(--r-pill);background:var(--ok);color:var(--ok-ink);font:700 var(--fs-11)/1.2 var(--body);vertical-align:3px;letter-spacing:0}
 .ex.all .okb{display:inline-block}
 .swp{margin-top:2px;font:500 var(--fs-13)/1.35 var(--body);color:var(--tx2)}
-.swp button{min-height:32px;color:var(--acc);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.swp button{min-height:44px;color:var(--acc);font-weight:600;text-decoration:underline;text-underline-offset:2px}
 .tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px 16px 0}
 .tools button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;height:52px;padding:0 2px;border-radius:var(--r-md);background:var(--fill);color:var(--tx2);font:600 var(--fs-12)/1 var(--body);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tools button:active{background:var(--fill-2)}
@@ -291,9 +305,15 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 
 /* колени и низ экрана */
 .kneec{margin-top:24px}
-.kneec .h{display:flex;justify-content:space-between;align-items:baseline;font:700 var(--fs-17)/1.3 var(--body)}
+.kneec .h{display:flex;align-items:baseline;gap:8px;font:700 var(--fs-17)/1.3 var(--body)}
+.kneec .h>span:first-child{flex:1}
 .kneec .h b{font:800 var(--fs-20)/1 var(--disp);color:var(--tx2)}
 .kneec .h b.none{font:500 var(--fs-13)/1.3 var(--body);color:var(--mu)}
+.kneec .h b.good{color:var(--ok)}.kneec .h b.warn{color:var(--bad)}
+.kneec .h .textbtn{min-height:32px}
+/* сустав с ответом сворачивается в одну строку; первый без ответа остаётся открытым */
+.pj.ans .knees,.pj.ans small{display:none}
+.pj.ans .h{cursor:pointer}
 .kneec small{display:block;margin-top:4px;font:500 var(--fs-13)/1.35 var(--body);color:var(--tx2)}
 .knees{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
 .knees button{height:48px;border-radius:var(--r-md);background:var(--fill);font:800 var(--fs-20) var(--disp);color:var(--tx)}
@@ -322,7 +342,7 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .crk{display:inline-flex;align-items:center;gap:6px;flex:none;font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ok)}
 .crk svg{width:14px;height:14px;stroke:var(--ok);stroke-width:3}
 .crv{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;min-width:0}
-.crv button{min-height:36px;padding:0 4px;font:600 var(--fs-13) var(--body);color:var(--tx2);white-space:nowrap}
+.crv button{min-height:44px;padding:0 4px;font:600 var(--fs-13) var(--body);color:var(--tx2);white-space:nowrap}
 .crv button:last-child{padding-right:0}
 .crv button+button::before{content:'·';margin-right:6px;color:var(--dim)}
 .circ-st{list-style:none;margin:8px 0 0;padding:0}
@@ -346,7 +366,7 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .circ .cs.skipst .nm{color:var(--mu)}
 .circ .cs.skipst .node{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line-strong);color:var(--mu)}
 .cs-skip{padding:2px 0 12px;font:500 var(--fs-13) var(--body);color:var(--mu)}
-.cs-skip button{min-height:36px;margin-left:6px;color:var(--acc);font-weight:600}
+.cs-skip button{min-height:44px;margin-left:6px;color:var(--acc);font-weight:600}
 .circ .cs .cs-hd{padding:14px 0 2px}
 /* текущая станция: золотой номер и тонкие линии сверху и снизу — без вложенной плашки */
 .circ .cs.open{padding-bottom:12px}
@@ -359,7 +379,7 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .circ .cs .set.x.done{background:transparent}
 /* инструменты станции — строка иконок; подписи — в aria-label */
 .cs-tools{position:relative;display:flex;gap:8px;margin-top:8px}
-.cs-tools button{width:48px;height:40px;border-radius:var(--r-md);display:grid;place-items:center;background:var(--fill);color:var(--tx2)}
+.cs-tools button{width:48px;height:44px;border-radius:var(--r-md);display:grid;place-items:center;background:var(--fill);color:var(--tx2)}
 .cs-tools button:active{background:var(--fill-2)}
 .cs-tools svg{width:20px;height:20px;stroke:var(--tx2)}
 .cs-rest{position:relative;display:flex;align-items:center;min-height:44px;padding-left:40px;font:500 var(--fs-13) var(--body);color:var(--mu)}
@@ -402,6 +422,20 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .shd .x svg{width:32px;height:32px;padding:8px;border-radius:50%;background:var(--fill-2);stroke:var(--tx2);stroke-width:2.4}
 .sheet .sc{padding:0 18px}
 .sheet h2{margin:0}
+/* одно правило отступов для кнопок шторки — без inline-стилей */
+.sheet .sc>.btn{margin-top:24px}
+.sheet .sc>.btn+.btn,.sheet .sc>.btn+.textbtn{margin-top:8px}
+.sheet .sc>.plist+.btn,.sheet .sc>.glist+.btn{margin-top:12px}
+.sheet .sc .g2{margin-top:12px}
+.sheet .g2 .btn{padding:0 10px;font-size:var(--fs-15)}
+.sheet .tb2 .btn,.sheet .tb2 .g2{margin-top:12px}
+.sheet .sc>.note{margin:16px 0 0}
+/* главная кнопка длинной шторки прилипает к низу — её видно, не долистывая анкету */
+.sheet:has(.acts){padding-bottom:0}
+.sheet .acts{position:sticky;bottom:0;z-index:3;margin:16px -18px 0;padding:12px 18px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(rgba(24,43,35,0),var(--sheet) 32%)}
+.sheet .acts .btn{margin:0}
+.sheet-foot{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sheet-foot .textbtn{margin:0}
 .tb2{margin-top:24px}
 .tb2.first,.sheet .sc>.tb2:first-child{margin-top:4px}
 .tb2 h4{margin-bottom:10px;font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
@@ -419,6 +453,8 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 input[type=number]{-moz-appearance:textfield;appearance:textfield}
 textarea:focus{outline:none;border-color:var(--acc)}
 .sheet .wos{margin:12px -18px 0;padding:4px 18px;scroll-padding-inline:18px}
+.sheet .wosr{margin-top:12px}
+.sheet .wosr .wos{margin:0 0 0 -18px;padding:4px 0 4px 18px}
 .sheet .glist{background:var(--s1);box-shadow:none}
 .sheet .yt{margin-top:24px}
 /* техника */
@@ -475,16 +511,19 @@ ol.pins li.hl i{background:var(--ok)}
 .pi small{display:block;font:500 var(--fs-13)/1.35 var(--body);color:var(--mu)}
 .pi .role{font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
 .pc{display:flex;flex-wrap:wrap;align-items:center;gap:8px 6px;margin-top:8px}
-.mini,.rp,.pa{display:flex;align-items:center;height:40px;border-radius:10px;background:var(--bg)}
-.mini button{width:32px;height:40px;font:500 var(--fs-20) var(--body);color:var(--tx2)}
+.mini,.rp,.pa{display:flex;align-items:center;height:44px;border-radius:10px;background:var(--bg)}
+/* видимые 32/34px, зона нажатия 44px — через ::after, иначе ряд −3+ × повт ↑↓ не помещается в 274px */
+.mini button{position:relative;width:32px;height:44px;font:500 var(--fs-20) var(--body);color:var(--tx2)}
+.mini button::after,.pa button::after{content:'';position:absolute;inset:0 -6px}
 .mini b{min-width:18px;text-align:center}
 .mini b,.rp input{font:800 var(--fs-15) var(--disp);color:var(--tx)}
-.rp input{width:48px;height:40px;padding:0 2px;border:0;background:none;text-align:center}
+.rp input{width:48px;height:44px;padding:0 2px;border:0;background:none;text-align:center}
 .rp span{padding-right:8px;font:500 var(--fs-13) var(--body);color:var(--mu)}
 .pc .x{font:600 var(--fs-15) var(--body);color:var(--mu)}
 /* порядок: ↑↓ парой в конце строки; убрать — тихий ✕ в углу */
 .pa{margin-left:auto}
-.pa button{width:34px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.pa button{position:relative;width:34px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.pa button::after{inset:0 -5px}
 .pa button:active{background:var(--fill-2)}
 .pa button:disabled{opacity:.35}
 .pa svg{width:18px;height:18px;stroke:var(--tx2);stroke-width:2.4}
@@ -495,17 +534,39 @@ ol.pins li.hl i{background:var(--ok)}
 .pgrp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 12px 6px;border-top:1px solid var(--line);font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
 .pgrp small{font:500 var(--fs-12) var(--body);letter-spacing:0;text-transform:none;color:var(--mu)}
 .pgrp+.pi::before{display:none}
-.pg{margin-top:16px}
-.pgh{display:flex;gap:10px;align-items:center;margin-bottom:6px}
-.pgh img,.pgh .noph{width:40px;height:40px;border-radius:10px;object-fit:cover}
+/* выбор упражнения: группа = тренажёр, строки списком с тонкими линиями */
+.pg{margin-top:16px;border-radius:var(--r-lg);background:var(--s1);overflow:hidden}
+.pgh{display:flex;gap:10px;align-items:center;min-height:56px;margin:0;padding:8px 12px;border-bottom:1px solid var(--line)}
+.pgh img,.pgh .noph{width:44px;height:56px;border-radius:10px;object-fit:cover}
 .pgh b{font:700 var(--fs-15) var(--body);color:var(--tx)}
-.pk{display:block;width:100%;min-height:52px;margin-top:6px;padding:10px 12px;text-align:left;border-radius:var(--r-md);background:var(--s1)}
+.pk{position:relative;display:block;width:100%;min-height:56px;margin:0;padding:10px 16px;text-align:left;border-radius:0;background:none}
+.pk+.pk::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--line)}
+.pk:active{background:var(--fill-2)}
 .pk b{display:block;font:600 var(--fs-15)/1.3 var(--body)}
 .pk small{font:500 var(--fs-13) var(--body);color:var(--mu)}
 .pk:disabled{opacity:.45}
 .form{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .form label{display:flex;flex-direction:column;gap:6px;font:600 var(--fs-13) var(--body);color:var(--tx2)}
 .form input,.form select{min-height:48px;padding:12px;border:1.5px solid transparent;border-radius:var(--r-md);background:var(--s2);font:400 16px var(--body);color:var(--tx);-webkit-appearance:none;appearance:none}
+/* примитивы форм: поле вне .form, подсказка под полем, ошибка на месте, пароль с «глазом», поиск с очисткой */
+.inp{width:100%;min-height:48px;padding:12px;border:1.5px solid transparent;border-radius:var(--r-md);background:var(--s2);font:400 16px var(--body);color:var(--tx);-webkit-appearance:none;appearance:none}
+.form input:focus,.inp:focus{outline:none;border-color:var(--acc)}
+.form label small{font:500 var(--fs-13)/1.35 var(--body);color:var(--mu)}
+.ferr{display:none;margin-top:8px;padding:10px 12px;border-radius:var(--r-md);background:var(--badd);color:var(--bad-t);font:500 var(--fs-13)/1.4 var(--body)}
+.ferr.on{display:block}
+.ferr.info{background:var(--fill);color:var(--tx2)}
+.form label.bad input,.inp.bad{border-color:var(--bad)}
+.pw{position:relative}
+.pw input{width:100%;padding-right:48px}
+.pw button{position:absolute;right:4px;top:50%;width:40px;height:40px;margin-top:-20px;display:grid;place-items:center;border-radius:10px;color:var(--tx2)}
+.pw button svg{width:20px;height:20px}
+.chipsel[data-multi="1"] button.on{padding-left:10px}
+.chipsel[data-multi="1"] button.on::before{content:'';display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317150A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat}
+.srch{position:relative;margin-top:12px}
+.srch input{width:100%;padding-right:44px}
+.srch .x{position:absolute;right:2px;top:2px;width:44px;height:44px;display:grid;place-items:center;color:var(--mu)}
+.srch .x[hidden]{display:none}
+.srch .x svg{width:18px;height:18px}
 .noph{display:block;flex:none;background:var(--s3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A3B8AD' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11'/%3E%3C/svg%3E") center/55% no-repeat}
 
 /* ===== PROGRESS ===== */
@@ -638,17 +699,22 @@ details.chat summary{display:flex;justify-content:space-between;align-items:cent
 details.chat summary::after{content:'Показать';font:500 var(--fs-13) var(--body);color:var(--mu)}
 details.chat[open] summary::after{content:'Скрыть'}
 details.chat pre{padding:0 16px 16px;white-space:pre-wrap;font:400 var(--fs-13)/1.55 var(--body);color:var(--tx2)}
-.done-ov #d-backup{position:relative}
-.done-ov .acts{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px -16px -40px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(13,26,22,0),var(--bg) 28%)}
+details.chat .btn{margin:0 16px 16px}
+.done-ov #d-backup{position:relative;margin-top:12px}
+.done-ov #d-undo{position:relative;margin-top:16px}
+.done-ov .acts{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:1fr;gap:8px;margin:16px -16px -40px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(13,26,22,0),var(--bg) 28%)}
 .done-ov .acts .btn{padding:0 8px;font-size:var(--fs-15)}
 
 /* ===== TOAST, WARN, CRASH ===== */
 .toast{position:fixed;left:16px;right:16px;top:auto;bottom:calc(70px + env(safe-area-inset-bottom) + var(--lift,0px));z-index:60;margin:0 auto;width:max-content;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px;padding:12px 14px 12px 16px;border-radius:16px;background:rgba(29,51,41,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);box-shadow:var(--float);color:var(--tx);font:600 var(--fs-15)/1.3 var(--body);opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s var(--ease);pointer-events:none}
 .toast.on{opacity:1;transform:none}
+/* короткое «✓ готово» — поверх полосы сессии (там нет кнопок), а не над ✓ и сеткой боли внизу */
+.toast.top{top:calc(6px + env(safe-area-inset-top));bottom:auto;transform:translateY(-12px)}
+.toast.top.on{transform:none}
 .toast.act.on{pointer-events:auto}
 body.timing .toast{bottom:calc(180px + env(safe-area-inset-bottom) + var(--lift,0px))}
 .toast .tt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.toast button{flex:none;min-height:36px;padding:0 10px;border-radius:10px;background:transparent;color:var(--acc);font:700 var(--fs-15) var(--body);white-space:nowrap}
+.toast button{flex:none;min-height:44px;margin:-4px 0;padding:0 10px;border-radius:10px;background:transparent;color:var(--acc);font:700 var(--fs-15) var(--body);white-space:nowrap}
 .warn{display:none;margin-bottom:12px;padding:12px 14px;border-radius:var(--r-md);background:var(--badd);color:var(--bad-t);font:500 var(--fs-15)/1.4 var(--body)}
 .warn.on{display:block}
 #crash{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;justify-content:center;gap:12px;padding:24px 20px;background:var(--bg);color:var(--tx)}
@@ -661,54 +727,74 @@ body.timing .toast{bottom:calc(180px + env(safe-area-inset-bottom) + var(--lift,
 
 /* ===== Тренер и профили ===== */
 .pt.has-av{position:relative;padding-right:56px}
-.avatar{position:absolute;right:0;top:2px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--fill-2);box-shadow:inset 0 0 0 1px var(--line-strong);font:800 var(--fs-17)/1 var(--disp);color:var(--tx)}
+.avatar{position:absolute;right:0;top:4px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--fill-2);box-shadow:inset 0 0 0 1px var(--line-strong);font:800 var(--fs-17)/1 var(--disp);color:var(--tx)}
 .avatar.sm{position:static;flex:none;width:36px;height:36px;font-size:var(--fs-15)}
-.gl-row.prof.on .avatar{background:var(--acc);color:var(--ink);box-shadow:none}
+.gl-row.prof.on .avatar{background:var(--fill-2);color:var(--tx);box-shadow:inset 0 0 0 1.5px var(--acc)}
 .coach{display:flex;flex-direction:column;gap:12px}
-.tip{display:grid;grid-template-columns:36px 1fr;gap:12px;padding:16px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge)}
+.tip{position:relative;display:grid;grid-template-columns:36px 1fr;gap:12px;padding:16px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge)}
+/* тихий ✕ «скрыть на 2 недели» в углу; у похвалы его нет */
+.tip .tx{position:absolute;top:8px;right:8px;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;color:var(--mu)}
+.tip .tx svg{width:16px;height:16px;stroke-width:2.4}
+.tip .tx:active{background:var(--fill-2)}
+.tip.warn .t>b,.tip.info .t>b{padding-right:36px}
 .tip .ti{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--fill-2)}
 .tip .ti svg{width:20px;height:20px;fill:none;stroke:var(--tx2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tip.warn .ti{background:var(--badd)}.tip.warn .ti svg{stroke:var(--bad)}
 .tip.good .ti{background:var(--ok-a)}.tip.good .ti svg{stroke:var(--ok)}
-.tip.info .ti{background:var(--acc-a)}.tip.info .ti svg{stroke:var(--acc)}
+.tip.info .ti{background:var(--fill-2)}.tip.info .ti svg{stroke:var(--tx2)}
 .tip b{display:block;font:700 var(--fs-17)/1.3 var(--body);color:var(--tx)}
 .tip p{margin-top:4px;font:400 var(--fs-15)/1.45 var(--body);color:var(--tx2)}
-.tip .ta{display:flex;align-items:center;gap:16px;margin-top:12px}
-.tip .ta:empty{display:none}
+.tip .ta{display:flex;align-items:center;gap:8px;margin-top:12px}
 .tip .btn.sm{width:auto;min-height:44px;padding:0 16px}
-.lnk{min-height:44px;padding:0 4px;font:600 var(--fs-15) var(--body);color:var(--mu)}
 .btn.danger{color:var(--bad)}
 .gl-row.prof{grid-template-columns:36px 1fr 24px;gap:12px}
+.gl-row.inv{grid-template-columns:1fr auto}
+#cinvlist .glist{margin-top:12px}
+details.more{margin-top:24px}
+details.more>summary{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:0;cursor:pointer}
+details.more>summary svg{width:14px;height:14px;stroke-width:2.4;transition:transform .2s}
+details.more[open]>summary svg{transform:rotate(180deg)}
 
 .cloud{padding:12px 16px;border-radius:var(--r-md);background:var(--ok-a);box-shadow:inset 0 0 0 1px rgba(107,194,138,.25)}
+#cinvlist+.cloud{margin-top:12px}
+.tb2 .hint2+.chipsel{margin-top:10px}
 .cloud b{display:block;font:700 var(--fs-15)/1.3 var(--body);color:var(--tx)}
-.cloud small{font:500 var(--fs-13) var(--body);color:var(--tx2)}
+.cloud small{display:block;font:500 var(--fs-13)/1.4 var(--body);color:var(--tx2)}
+.cloud .textbtn.inl{display:inline-flex;margin:6px 0 -6px -8px;min-height:40px;color:var(--tx);font-weight:700}
 .cloud.bad{background:var(--badd);box-shadow:none}.cloud.bad small{color:var(--bad-t)}
 .btn:disabled{opacity:.6}
 
-.pj+.pj{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.pj+.pj{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 
-.dayops{display:flex;justify-content:space-between;gap:12px;margin-top:4px}
-.dayops .danger,.lnk.danger{color:var(--bad)}
-.pgf{margin-top:12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-.pgf::-webkit-scrollbar{display:none}
-.pgf button{white-space:nowrap;flex:none}
+.dayops{display:flex;justify-content:flex-end;gap:12px;margin-top:4px}
+.pgf{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;scrollbar-width:none;margin:12px -18px 0;padding:4px 18px;scroll-padding-inline:18px}
+.pgf button{height:36px;min-height:0;white-space:nowrap;flex:none}
 .wiz .chipsel button{min-height:44px}
 input[type=search]{-webkit-appearance:none;appearance:none}
 
 /* ===== Первый запуск и установка ===== */
-.welcome{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 8px 24px;min-height:70vh;justify-content:center}
-.welcome .wl{width:84px;height:84px;border-radius:26px;display:grid;place-items:center;background:var(--acc);color:var(--ink);box-shadow:0 16px 40px rgba(245,200,66,.25)}
-.welcome .wl svg{width:46px;height:46px}
-.welcome h1{margin-top:20px;font:800 var(--fs-34)/1.05 var(--disp);letter-spacing:-.6px}
-.welcome p{margin:12px 0 28px;font:400 var(--fs-17)/1.45 var(--body);color:var(--tx2);max-width:34ch}
+.welcome{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 0 32px;min-height:calc(100vh - 40px);justify-content:center}
+.welcome .wl{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;background:var(--s2);color:var(--acc);box-shadow:var(--edge)}
+.welcome .wl svg{width:40px;height:40px}
+.welcome h1{margin-top:20px;font:800 var(--fs-30)/1.1 var(--disp);letter-spacing:-.5px}
+.welcome p{margin:12px 0 28px;font:400 var(--fs-15)/1.45 var(--body);color:var(--tx2);max-width:34ch}
 .welcome .btn+.btn{margin-top:10px}
-.welcome .note{margin-bottom:16px;text-align:left}
-.welcome small{margin-top:16px;font:500 var(--fs-13) var(--body);color:var(--mu)}
-.steps3{list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:4px}
-.steps3 li{display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:center;padding:12px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge)}
-.steps3 .ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--fill-2);color:var(--acc)}
-.steps3 .ic svg{width:28px;height:28px}
-.steps3 b{display:block;font:700 var(--fs-17)/1.3 var(--body);color:var(--tx)}
+.welcome small{margin-top:16px;font:500 var(--fs-13)/1.4 var(--body);color:var(--mu)}
+.welcome .inv{width:100%;margin-bottom:16px;padding:12px 16px;border-radius:var(--r-md);background:var(--fill);text-align:left;font:500 var(--fs-13)/1.4 var(--body);color:var(--mu)}
+.welcome .inv b{display:block;margin:2px 0;font:700 var(--fs-20)/1.2 var(--disp);letter-spacing:.04em;color:var(--tx)}
+.welcome .inv small{display:block;margin:0;color:var(--mu)}
+.welcome .inst{width:100%;text-align:left;margin-bottom:16px}
+.welcome .inst .ct{display:block;margin:4px 0 0;font:800 var(--fs-20)/1.2 var(--disp)}
+.welcome .inst .steps3{margin-top:12px}
+.welcome .inst .hint2{max-width:none;margin:10px 0 0;font:500 var(--fs-13)/1.4 var(--body);color:var(--mu);text-align:center}
+.welcome .textbtn{margin-top:4px}
+.welcome.ios .btn.s2{margin-top:8px}
+/* три шага установки — один список; порядок задан сверху вниз, слева иконка той самой кнопки iPhone */
+.steps3{list-style:none;display:block;margin-top:12px;border-radius:var(--r-lg);background:var(--s1);overflow:hidden}
+.steps3 li{position:relative;display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:center;padding:12px 16px;background:none;box-shadow:none;border-radius:0}
+.steps3 li+li::after{content:'';position:absolute;top:0;left:64px;right:0;height:1px;background:var(--line)}
+.hint2.arrow{margin-top:10px;text-align:center}
+.steps3 .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--fill-2);color:var(--tx2)}
+.steps3 .ic svg{width:20px;height:20px}
+.steps3 b{display:block;font:700 var(--fs-15)/1.3 var(--body);color:var(--tx)}
 .steps3 small{display:block;margin-top:2px;font:500 var(--fs-13)/1.35 var(--body);color:var(--mu)}
-.lnk{display:block;width:100%;text-align:center}

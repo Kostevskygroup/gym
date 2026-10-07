@@ -1,6 +1,29 @@
 // Возможности iPhone и браузера: экран «Домой», звук, отклик, экран не гаснет, офлайн, файлы.
 export const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export const isAndroid = () => /Android/i.test(navigator.userAgent);
 export const isStandalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+
+// ---- установка на Android/десктопе: браузер сам предлагает установку событием beforeinstallprompt.
+// Ловим его при загрузке и показываем свою кнопку «Установить»; на iOS события нет — там инструкция по шагам.
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installEvt = e;
+  try {dispatchEvent(new Event('gym:install'));} catch (err) {}
+});
+addEventListener('appinstalled', () => {installEvt = null; try {dispatchEvent(new Event('gym:install'));} catch (err) {}});
+export const canPromptInstall = () => !!installEvt;
+// Показать системный диалог установки. true — установлено, false — отказ или диалога нет.
+export async function promptInstall() {
+  const e = installEvt;
+  if (!e) return false;
+  installEvt = null;
+  try {
+    e.prompt();
+    const r = await e.userChoice;
+    return !!r && r.outcome === 'accepted';
+  } catch (err) {console.warn('install prompt', err); return false;}
+}
 
 // ---- звук: AudioContext создаём и «будим» только по нажатию, иначе iOS молчит ----
 let ctx = null;

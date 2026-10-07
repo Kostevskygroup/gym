@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {
   exOf, allEx, planOf, phaseOf, itemsOf, stepOf, setItem, removeItem, moveItem, addItem, replaceItem,
-  resetPlan, addCustom, pickerGroups,
+  resetPlan, addCustom, pickerGroups, matchQuery,
 } from '../js/program.js';
 import {emptyDB} from '../js/backup.js';
 import {W} from '../js/data/program.js';
@@ -115,4 +115,17 @@ test('days: add, rename and remove apply to every phase; the last day cannot be 
   let one = {...db0(), plan: {p1: {label: 'a', sub: '', hint: '', w: {'А': []}}, p2: {label: 'b', sub: '', hint: '', w: {'А': []}}, p3: {label: 'c', sub: '', hint: '', w: {'А': []}}}};
   assert.throws(() => removeDay(one, 'А'), /последний/);
   assert.throws(() => addDay(db0(), '  '), /название/);
+});
+
+test('matchQuery finds by name, muscle group and equipment, any word order', () => {
+  const e = EX.kickback; // Отведение ноги назад · Ягодицы · Кроссовер
+  assert.equal(matchQuery(e, ''), true);
+  assert.equal(matchQuery(e, 'отведение'), true);
+  assert.equal(matchQuery(e, 'ягодицы'), true);
+  assert.equal(matchQuery(e, 'кроссовер'), true);
+  assert.equal(matchQuery(e, 'ягодицы кроссовер'), true);
+  assert.equal(matchQuery(e, 'гантели'), false);
+  assert.equal(matchQuery(EX.lat, 'спина'), true);
+  assert.equal(matchQuery(EX.lateral, 'гантели'), true);
+  assert.equal(matchQuery(EX.lateral, 'ягодицы'), false);
 });

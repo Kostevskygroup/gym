@@ -34,6 +34,7 @@ export function openTech(id) {
   ${guideSvg(id, e) ? `<div class="tb2"><h4>Настройка на твоём тренажёре</h4>${guideSvg(id, e)}</div>` : ''}
   ${!hasPhoto(e.img) && e.img !== 'mat' ? `<div class="note" style="margin:16px 0 0">Фото «${esc(eq ? eq.n : 'снаряда')}» из твоего зала пока нет. Сфоткай его кнопкой «Табличка» ниже — фото станет обложкой упражнения.</div>` : ''}
   ${e.setup ? `<div class="tb2"><p>${esc(e.setup)}</p></div>` : ''}
+  ${e.knee && WK.kneeTracked() ? '<div class="tb2"><p>Нагружает колени — если болят выше 3, не повышай вес.</p></div>' : ''}
   <div class="tb2"><h4>Мои фото: старт и финиш</h4><div class="phs" id="myphs"></div>
     <div class="addph"><button data-add="start">${ICON.cam}Старт</button><button data-add="end">${ICON.cam}Финиш</button><button data-add="plate">${ICON.cam}Табличка</button></div>
     <p class="hint2">Попроси кого-нибудь в зале сфоткать тебя в начале и в конце движения — или сними инструкцию на самом тренажёре. Фото хранятся на телефоне и входят в резервную копию.</p></div>
@@ -72,19 +73,21 @@ function viewPhoto(p, src, after) {
   };
 }
 
+// Порядок: «по плану» → что уже делали → без нагрузки на отмеченные суставы → остальные.
+// Флажок «навсегда» — над списком: список длинный, внизу его не найти.
 export function openSwap(k, it, done) {
-  const db = state.db, slot = it.orig || it.id, inWo = WK.itemsFor(k).map(x => x.id);
-  const alts = L.alternatives(slot, P.allEx(db), inWo.filter(x => x !== slot));
-  const cur = P.exOf(db, it.id), list = alts.filter(x => x !== it.id);
-  if (it.orig && !list.includes(it.orig)) list.unshift(it.orig);
+  const db = state.db, slot = it.orig || it.id, inWo = WK.itemsFor(k).map(x => x.id), exOf = id => P.exOf(db, id);
+  const alts = L.alternatives(slot, P.allEx(db), inWo.filter(x => x !== slot)), joints = WK.tracked();
+  const cur = exOf(it.id), ranked = L.rankAlts(alts.filter(x => x !== it.id && x !== it.orig), exOf, id => !!L.lastFor(db.sessions, id), joints);
+  const list = it.orig && it.orig !== it.id ? [it.orig, ...ranked] : ranked;
   const row = id => {
-    const e = P.exOf(db, id), Ls = L.lastFor(db.sessions, id);
-    return `<button class="alt" data-to="${esc(id)}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t">${e.g === 'core' && P.ROLE[e.cr] ? `<small class="role">${P.ROLE[e.cr]}</small>` : ''}<b>${esc(e.n)}${id === it.orig ? '<span class="tag">по плану</span>' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${e.knee ? ' · колени' : ''}</small><small class="n">${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? fmtN(x.a) + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не делал'}</small></span>${ICON.chev}</button>`;
+    const e = exOf(id), Ls = L.lastFor(db.sessions, id), lt = L.loadTxt(e);
+    return `<button class="alt" data-to="${esc(id)}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t">${e.g === 'core' && P.ROLE[e.cr] ? `<small class="role">${P.ROLE[e.cr]}</small>` : ''}<b>${esc(e.n)}${id === it.orig ? '<span class="tag">по плану</span>' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${lt ? ' · ' + lt : ''}</small><small class="n">${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? fmtN(x.a) + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не было'}</small></span>${ICON.chev}</button>`;
   };
   openSheet(`${sheetHead(esc(cur.n), 'Замена')}<div class="sc">
     <p class="hint2">Тренажёр занят? Замена — на ту же группу мышц, только на оборудовании твоего зала.</p>
-    <div class="alts">${list.length ? list.map(row).join('') : '<p class="empty">Замен для этого упражнения нет.</p>'}</div>
-    <label class="chk"><input type="checkbox" id="swperm"> Заменить в программе навсегда</label></div>`, sh => {
+    <label class="chk"><input type="checkbox" id="swperm"> Заменить в программе навсегда</label>
+    <div class="alts">${list.length ? list.map(row).join('') : '<p class="empty">Замен для этого упражнения нет.</p>'}</div></div>`, sh => {
     sh.querySelectorAll('[data-to]').forEach(b => b.onclick = () => {
       const to = b.dataset.to, rows = draft(k).ex[it.id] || [];
       if (rows.some(x => x.done) && !confirm('Отмеченные подходы по этому упражнению сбросятся. Заменить?')) return;
@@ -93,7 +96,7 @@ export function openSwap(k, it, done) {
         updDB(d => P.replaceItem(d, ph, wo, slot, to));
         WK.swapEx(k, slot, slot);
         toast('Заменено в программе');
-      } else {WK.swapEx(k, slot, to); toast(to === slot ? 'Вернул по плану' : 'Заменено на сегодня');}
+      } else {WK.swapEx(k, slot, to); toast(to === slot ? 'Снова по плану' : 'Заменено на сегодня');}
       closeSheet(); done();
     });
   });

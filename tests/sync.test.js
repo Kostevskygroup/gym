@@ -56,3 +56,17 @@ test('server never sees workout content', () => {
   const dump = JSON.stringify([...s3.values()]);
   assert.ok(!dump.includes('lat') && !dump.includes('Ксюша'));
 });
+
+test('humanErr turns technical failures into plain words and keeps server messages', () => {
+  const {humanErr, errAction} = sync;
+  assert.equal(humanErr(new Error('AES key data must be 128 or 256 bits')), 'Не удалось расшифровать данные — выйди из облака и войди заново');
+  assert.equal(humanErr(Object.assign(new Error('Failed to fetch'), {offline: true})), 'Нет связи с сервером');
+  assert.equal(humanErr(new TypeError('Failed to fetch')), 'Нет связи с сервером');
+  assert.equal(humanErr(Object.assign(new Error('Unauthorized'), {status: 401})), 'Пароль изменился или аккаунт удалён — войди заново');
+  assert.equal(humanErr(Object.assign(new Error('Ошибка сервера 502'), {status: 502})), 'Сервер не отвечает — попробуй позже');
+  assert.equal(humanErr(Object.assign(new Error('Неверный код приглашения'), {status: 400})), 'Неверный код приглашения');
+  assert.equal(humanErr(new SyntaxError('Unexpected token < in JSON')), 'Сервер ответил непонятно — попробуй позже');
+  assert.equal(humanErr(new Error('Пароль — минимум 6 символов')), 'Пароль — минимум 6 символов');
+  assert.equal(errAction('Пароль изменился или аккаунт удалён — войди заново'), 'relogin');
+  assert.equal(errAction('Нет связи с сервером'), 'retry');
+});

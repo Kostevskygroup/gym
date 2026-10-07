@@ -13,8 +13,9 @@ import {EQUIP, hasPhoto} from '../data/equipment.js';
 import {ownCover} from './covers.js';
 
 const UNIT_S = {w: 'повт', r: 'повт', t: 'сек', c: 'мин'};
-const RIR_TXT = {p1: '3 повтора в запасе', p2: '1–2 повтора в запасе', p3: '1 повтор в запасе'};
-const KNEE_HINT = {none: 'Отметь, даже если 0.', set: '0 — ничего не чувствую. Выше 3 — вес на этот сустав не повышаем.'};
+// Сколько повторов оставлять в запасе на этапе — для подсказки «Первый раз».
+const RIR_N = {p1: 3, p2: 2, p3: 1};
+const KNEE_HINT = {none: 'Отметь, даже если 0.', set: '0 — всё хорошо. Если выше 3 — вес на этот сустав в следующий раз не повышаю.'};
 let open = {}, lastTap = 0;
 const DOUBLE_TAP_MS = 600, DONE_TOAST_MS = 1500;
 const isCore = it => it.blk === 'core';
@@ -34,7 +35,7 @@ export function renderTrain() {
   ${items.length ? '' : '<p class="empty">В этой тренировке нет упражнений — добавь их в «Программе».</p>'}
   ${WK.painsToday(k).length ? `<div class="card kneec" id="kneec">${WK.painsToday(k).map(j => painHtml(j, c.pain[j])).join('')}</div>` : ''}
   <button class="btn" id="finish" style="margin-top:24px">Завершить тренировку</button>
-  <button class="textbtn" id="reset">Сбросить отметки</button>`;
+  ${hasMarks(c) ? '<button class="textbtn" id="reset">Сбросить отметки</button>' : ''}`;
   $('#v-train').innerHTML = h;
   fadeRows($('#v-train'));
   items.filter(it => !isCore(it)).forEach(it => renderCard(it));
@@ -55,10 +56,14 @@ function listHtml(items) {
   }).join('');
 }
 
+// Есть ли что сбрасывать: отмеченные подходы или разминка.
+const hasMarks = c => Object.values(c.ex).some(r => r.some(x => x.done)) || Object.values(c.warm).some(w => w.some(Boolean));
 const JT = {knee: 'Колени', back: 'Спина', shoulder: 'Плечи', elbow: 'Локти', wrist: 'Запястья', neck: 'Шея', hip: 'Тазобедренные', ankle: 'Голеностоп'};
+const PAIN_WARN = 3;
+// Сустав с ответом сворачивается в строку с «изменить»; цвет значения — по шкале.
 const painHtml = (j, v) => {
   const none = v === null || v === undefined;
-  return `<div class="pj" data-j="${j}"><div class="h"><span>${JT[j]} сегодня</span><b class="n${none ? ' none' : ''}"${j === 'knee' ? ' id="kneev"' : ''}>${none ? 'не отмечено' : v}</b></div>
+  return `<div class="pj${none ? '' : ' ans'}" data-j="${j}"><div class="h"${none ? '' : ' data-edit'}><span>${JT[j]} сегодня</span><b class="n${none ? ' none' : v <= PAIN_WARN ? ' good' : ' warn'}"${j === 'knee' ? ' id="kneev"' : ''}>${none ? 'не отмечено' : v}</b>${none ? '' : '<button type="button" class="textbtn inl" data-edit>изменить</button>'}</div>
   <small>${none ? KNEE_HINT.none : KNEE_HINT.set}</small>
   <div class="knees"${j === 'knee' ? ' id="knee"' : ''} role="group" aria-label="Боль: ${JT[j]}">${Array.from({length: 11}, (_, i) => `<button class="${v === i ? 'on' : ''}" data-v="${i}">${i}</button>`).join('')}</div></div>`;
 };
@@ -69,6 +74,8 @@ function bindTrain(k, live) {
   $$('#wos [data-w]').forEach(b => b.onclick = () => {if (b.dataset.w === state.db.wo || !guard()) return; updDB(d => ({...d, wo: b.dataset.w})); renderTrain();});
   $('#goplan').onclick = () => import('./plan.js').then(m => m.openPlan(state.db.phase, state.db.wo));
   if ($('#kneec')) $('#kneec').onclick = e => {
+    const ed = e.target.closest('[data-edit]');
+    if (ed) {ed.closest('.pj').classList.remove('ans'); return;}
     const b = e.target.closest('[data-v]'), row = b && b.closest('.pj');
     if (!b || !row) return;
     WK.setPain(k, row.dataset.j, +b.dataset.v);
@@ -76,7 +83,8 @@ function bindTrain(k, live) {
     row.outerHTML = painHtml(row.dataset.j, +b.dataset.v);
   };
   $('#finish').onclick = () => finish(k);
-  $('#reset').onclick = () => {if (confirm('Сбросить все отметки этой тренировки?')) {dropDraft(k); stopRest(); keepAwake(false); renderTrain(); updDot();}};
+  const rs = $('#reset');
+  if (rs) rs.onclick = () => {if (confirm('Сбросить все отметки этой тренировки?')) {dropDraft(k); stopRest(); keepAwake(false); renderTrain(); updDot();}};
   const ss = $('#t-stsave'); if (ss) ss.onclick = () => saveStale(k, () => {renderTrain(); updDot();});
   const sd = $('#t-stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(k); renderTrain(); updDot();}};
   const list = $('#list');
@@ -141,14 +149,14 @@ function renderCard(it, justK) {
   el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '');
   let h = `${pic ? `<div class="exp"><img src="${pic}" alt="" loading="lazy"></div>` : ''}
   <div class="exh"><div class="no">${idxOf(slot) + 1} из ${WK.itemsFor(k).length}</div>
-   <h3>${esc(e.n)}${e.knee ? '<span class="kn">колени</span>' : ''}<span class="okb">✓ Готово</span></h3>
+   <h3>${esc(e.n)}${e.knee && WK.kneeTracked() ? '<span class="kn" title="Упражнение нагружает колени">нагрузка на колени</span>' : ''}<span class="okb">✓ Готово</span></h3>
    <div class="tg">${tlab}${best ? ' · рекорд ' + fmtN(best.a) + '×' + best.b : ''}</div>
    ${swpHtml(db, it)}</div>
   ${toolsHtml(skip)}`;
   if (skip) {el.innerHTML = h + '<p class="skipped">Пропущено сегодня</p>'; return;}
   h += noteBtn(note);
   if (A) h += `<div class="aimrow ${A.up ? 'up' : A.down ? 'down' : ''}"><span>${A.up ? '↑ Пора добавить' : A.down ? '↓ Сегодня легче' : 'Цель'}</span><b class="n">${esc(ruDec(A.txt))}</b>${A.why ? `<small>${esc(A.why)}</small>` : ''}</div>`;
-  else if (e.t === 'w') h += `<div class="aimrow first"><span>Первый раз</span><b>Подбери вес: ${RIR_TXT[db.phase] || RIR_TXT.p2}</b></div>`;
+  else if (e.t === 'w') h += `<div class="aimrow first"><span>Первый раз</span><b>${firstTimeTxt(it.r, RIR_N[db.phase] || RIR_N.p2)}</b></div>`;
   if (it.n) h += `<div class="note">${esc(it.n)}</div>`;
   const rm = ok >= 0 && rows[ok] && !rows[ok].done && rows.length > 1;
   h += `<div class="sets">${warmHtml(k, it, e, rows)}${setHead(Ls)}${rows.map((x, j) => j === ok ? rowOpen(e, x, j, j === nx, j === justK, Ls) : rowShut(e, x, j, j === justK, Ls)).join('')}
@@ -157,6 +165,11 @@ function renderCard(it, justK) {
 }
 
 const setHead = Ls => `<div class="seth"><span></span><span><em>${Ls ? 'Прошлый · ' + fmtD(Ls.date) : ''}</em><em>Сегодня</em></span><span></span></div>`;
+// «Возьми вес, с которым сделаешь 12 повторов и ещё 3 осталось бы в запасе…» — без тренерского жаргона.
+function firstTimeTxt(reps, rir) {
+  const n = +(String(reps).match(/\d+/) || [10])[0];
+  return `Возьми вес, с которым сделаешь ${esc(reps)} ${plural(n, 'повтор', 'повтора', 'повторов')} и ещё ${rir} ${plural(rir, 'остался', 'осталось', 'осталось')} бы в запасе. Легко — добавь на следующем подходе, тяжело — убавь.`;
+}
 function setActs(e, rm, ok) {
   const add = e.t !== 'c' ? '<button class="addset" data-act="add">+ Ещё подход</button>' : '';
   const del = rm ? `<button class="rmset" data-act="del" data-k="${ok}">Убрать подход</button>` : '';
@@ -177,7 +190,7 @@ function rowOpen(e, x, j, isNext, just, Ls, label = `подход ${j + 1}`) {
   const stp = (f, val, unit, mode, ph) => `<div class="stp"><button data-act="${f}m" aria-label="Меньше">−</button><label><input class="n${tg(f)}" inputmode="${mode}" data-f="${f === 'w' ? 'a' : 'b'}" value="${esc(ruDec(val))}" placeholder="${ph}" aria-label="${unit}, ${label}"><span>${unit}</span></label><button data-act="${f}p" aria-label="Больше">+</button></div>`;
   const was = prevStr(e, Ls, j);
   return `<div class="set x ${x.done ? 'done' : ''} ${isNext ? 'nx' : ''} ${just ? 'just' : ''}" data-k="${j}"><span class="si">${j + 1}</span>
-  <div class="ins">${e.t === 'w' ? stp('w', x.a, 'кг', 'decimal', 'вес') : ''}${stp('r', x.b, UNIT_S[e.t], 'numeric', '—')}
+  <div class="ins">${e.t === 'w' ? stp('w', x.a, 'кг', 'decimal', '—') : ''}${stp('r', x.b, UNIT_S[e.t], 'numeric', '—')}
   ${was ? `<small class="was n">было ${was}</small>` : ''}</div>
   <div class="side"><button class="ck big" data-act="ck" aria-pressed="${x.done}" aria-label="${label[0].toUpperCase() + label.slice(1)} выполнен">${CK}</button></div></div>`;
 }
@@ -281,7 +294,13 @@ function onTap(ev) {
   if (!x) return;
   if (act === 'open') {open[slot] = j; return rerender(it);}
   if (act === 'del') {WK.removeSet(k, it, j); delete open[slot]; return rerender(it);}
-  if (act === 'wm' || act === 'wp') {const st = P.stepOf(state.db, it.id), cur = +x.a || 0; WK.editField(k, it, j, 'a', Math.max(0, Math.round((cur + (act === 'wp' ? st : -st)) * 100) / 100)); haptic(5); return rerender(it, j);}
+  if (act === 'wm' || act === 'wp') {
+    // «−» на пустом или нулевом весе ничего не делает: 0 кг в подход не попадает; «+» на пустом — от минимума тренажёра
+    const st = P.stepOf(state.db, it.id), cur = +x.a || 0;
+    if (act === 'wm' && !(cur > 0)) {haptic(5); return;}
+    const next = act === 'wp' && !(cur > 0) ? Math.max(st, EQUIP[e.img]?.min || 0) : cur + (act === 'wp' ? st : -st);
+    WK.editField(k, it, j, 'a', Math.max(0, Math.round(next * 100) / 100)); haptic(5); return rerender(it, j);
+  }
   if (act === 'rm' || act === 'rp') {const st = e.t === 't' ? 5 : 1, cur = +x.b || 0; WK.editField(k, it, j, 'b', Math.max(0, cur + (act === 'rp' ? st : -st))); haptic(5); return rerender(it, j);}
   if (act === 'ck') return tapCheck(k, it, j, x, e);
 }
@@ -299,7 +318,8 @@ function tapCheck(k, it, j, x, e) {
   lastTap = now;
   unlockAudio();
   if (!x.done) {
-    if (x.b === '' || (e.t === 'w' && x.a === '')) {toast(e.t === 'w' ? 'Укажи вес и повторы' : 'Укажи значение'); return;}
+    const noW = e.t === 'w' && (x.a === '' || +x.a <= 0), noB = x.b === '';
+    if (noW || noB) {toast(e.t !== 'w' ? 'Укажи значение' : noW && noB ? 'Укажи вес и повторы' : noW ? 'Укажи вес' : 'Укажи повторы'); return;}
     const Ls = L.lastFor(state.db.sessions, it.id), lw = Ls && e.t === 'w' ? Math.max(...Ls.e.map(r => +r.a || 0)) : null;
     const q = L.sanity(e.t, x, lw);
     if (q && !confirm(q)) return;
@@ -324,7 +344,7 @@ function tapCheck(k, it, j, x, e) {
       return;
     }
     const nxt = nextUp(k, slot);
-    if (allDone && nxt) {toast('✓ ' + (isCore(it) ? 'Пресс' : e.n) + ' — готово', null, DONE_TOAST_MS); goTo(nxt, 450);}
+    if (allDone && nxt) {toast('✓ ' + (isCore(it) ? 'Пресс' : e.n) + ' — готово', null, DONE_TOAST_MS, 'top'); goTo(nxt, 450);}
     else if (allDone) {dismissToast(); goFinish(450);}
     const label = allDone ? (nxt ? 'Далее: ' + P.exOf(state.db, nxt.id).n : 'Последнее упражнение позади') : `Далее: подход ${j + 2} · ${valStr(e, rows[j + 1] || x)}`;
     if (rest) startRest(allDone ? Math.min(rest, 90) : rest, label); else stopRest();

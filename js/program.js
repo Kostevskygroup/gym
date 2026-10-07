@@ -13,6 +13,12 @@ export const GROUPS = {
   side: 'Плечи — средняя дельта', rear: 'Задняя дельта', biceps: 'Бицепс', triceps: 'Трицепс', core: 'Пресс и кор', cardio: 'Кардио',
 };
 
+// Короткие подписи групп — для ряда фильтров и поиска.
+export const GROUP_SHORT = {quads: 'Перед бедра', hams: 'Зад бедра', glutes: 'Ягодицы', gmed: 'Бок ягодиц', calves: 'Икры', backv: 'Тяга сверху', backh: 'Тяга к поясу', chest: 'Грудь', press: 'Жим плечами', side: 'Дельты', rear: 'Задняя дельта', biceps: 'Бицепс', triceps: 'Трицепс', core: 'Пресс', cardio: 'Кардио'};
+// Поиск упражнения — по названию, группе мышц (полной и короткой) и тренажёру: «ягодицы», «спина», «гантели» тоже находят.
+const searchText = e => [e.n, GROUPS[e.g] || '', GROUP_SHORT[e.g] || '', EQUIP[e.img]?.n || ''].join(' ').toLowerCase();
+export const matchQuery = (e, q) => {const ws = String(q || '').toLowerCase().split(/\s+/).filter(Boolean); return !ws.length || ws.every(w => searchText(e).includes(w));};
+
 export const allEx = db => ({...EX, ...(db.custom || {})});
 export const exOf = (db, id) => EX[id] || (db.custom || {})[id] || {n: id + ' (удалено)', g: null, img: null, t: 'w', setup: '', how: [], bad: [], gone: 1};
 export const planOf = db => db.plan || W;
