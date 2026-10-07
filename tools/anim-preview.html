@@ -4,18 +4,20 @@
 <style>
   :root{color-scheme:dark}
   body{margin:0;padding:12px;background:#0B1512;color:#DCE6E1;font:13px/1.3 -apple-system,system-ui,sans-serif}
-  .row{display:grid;grid-template-columns:150px repeat(3,1fr);gap:8px;align-items:center;margin:0 0 8px}
+  .row{display:grid;grid-template-columns:150px repeat(var(--cols,3),1fr);gap:8px;align-items:center;margin:0 0 8px}
   .row b{font-size:13px}.row small{display:block;color:#7E918A}
   svg{display:block;width:100%;height:auto;border-radius:10px}
 </style></head>
 <body><div id="out"></div>
 <script type="module">
-// Инструмент разработки: ?ids=a,b,c — кадры старт / середина / финиш для каждого движения; ?live=id — анимация.
+// Инструмент разработки: ?ids=a,b,c — кадры для каждого движения; ?ks=0,0.25,0.5,0.75,1 — какие доли движения (по умолчанию 0, 0.5, 1).
 import {frameSvg, viewBox} from '../js/anim/draw.js';
 import {lerpPose} from '../js/anim/rig.js';
 import {MOVES} from '../js/data/moves.js';
 import {EX} from '../js/data/exercises.js';
 const q = new URLSearchParams(location.search), ids = (q.get('ids') || Object.keys(MOVES).join(',')).split(',').filter(Boolean);
+const KS = (q.get('ks') || '0,0.5,1').split(',').map(Number);
+document.documentElement.style.setProperty('--cols', KS.length);
 const out = document.getElementById('out');
 out.innerHTML = ids.map(id => {
   const m = MOVES[id], e = EX[id] || {};
@@ -23,6 +25,6 @@ out.innerHTML = ids.map(id => {
   const spec = {g: e.g, ...m};
   const vb = viewBox(spec, [m.a, lerpPose(m.a, m.b, 0.5), m.b]);
   const fr = k => {try {return frameSvg(spec, lerpPose(m.a, m.b, k), k, id + k, vb);} catch (err) {return `<pre>${err.message}</pre>`;}};
-  return `<div class="row"><b>${id}<small>${e.n || ''}</small></b>${fr(0)}${fr(0.5)}${fr(1)}</div>`;
+  return `<div class="row"><b>${id}<small>${e.n || ''}</small><small>${e.img || ''} · ${e.g || ''}</small></b>${KS.map(fr).join('')}</div>`;
 }).join('');
 </script></body></html>
