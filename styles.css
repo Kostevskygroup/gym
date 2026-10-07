@@ -51,7 +51,7 @@ main{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:calc(20px
 @keyframes pulse{50%{box-shadow:0 0 0 2px var(--bg),0 0 0 6px rgba(107,194,138,.25)}}
 
 /* общие иконки-линии */
-.tools svg,.prm svg,.iconbtn svg,.backup svg,.circ svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg,.steps3 svg,.srch svg,.pw svg,.more summary svg,.tip .tx svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tools svg,.prm svg,.iconbtn svg,.backup svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg,.steps3 svg,.srch svg,.pw svg,.more summary svg,.tip .tx svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .pt{margin:4px 2px 16px}
 .pt small,.ptb{display:block;font:600 var(--fs-13)/1.35 var(--body);color:var(--mu);margin-bottom:4px}
@@ -271,22 +271,6 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .set.nx .ck{background:var(--acc);box-shadow:none}.set.nx .ck svg{stroke:var(--ink)}
 .set.just .ck{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
 /* открытый подход: та же колонка ✓, строка только выше */
-.set.x{align-items:stretch;margin:6px 0;padding:6px 4px;background:transparent}
-.set.x .si{align-self:start;margin-top:16px}
-.ins{display:flex;flex-direction:column;gap:8px;min-width:0}
-.stp{display:flex;align-items:center;height:56px;border-radius:var(--r-md);background:var(--s2)}
-.stp button{flex:none;width:48px;height:56px;border-radius:var(--r-md);color:var(--tx2);font:500 26px/1 var(--body)}
-.stp button:active{background:var(--fill-2);color:var(--acc)}
-.stp label{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:center;gap:4px}
-.stp input{width:100%;min-width:0;max-width:120px;padding:0;border:0;background:none;text-align:right;color:var(--tx);font:800 var(--fs-30)/1 var(--disp)}
-.stp input.tgt{color:var(--acct)}
-.stp input:focus{outline:none;color:var(--acc)}
-.stp input::placeholder{color:var(--mu);font:600 var(--fs-15) var(--body)}
-.stp label span{flex:none;width:34px;font:600 var(--fs-13) var(--body);color:var(--tx2)}
-.was{padding:0 4px;font:500 var(--fs-13)/1.3 var(--body);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.side{align-self:stretch;display:flex;justify-content:flex-end}
-.ck.big{width:56px;height:auto;min-height:56px;border-radius:14px}
-.ck.big svg{width:30px;height:30px}
 .setacts{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
 .addset{flex:1;min-height:44px;padding:0 8px;text-align:left;background:transparent;font:600 var(--fs-15) var(--body);color:var(--tx2)}
 .rmset{min-height:44px;padding:0 8px;background:transparent;font:600 var(--fs-15) var(--body);color:var(--mu)}
@@ -346,68 +330,17 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 
 /* ===== TRAIN: круг пресса ===== */
 /* Внутренний отступ 16 — как у карточек упражнений: ✓ и номера стоят на тех же x. */
-.circ{margin-top:24px;padding:16px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge);scroll-margin-top:calc(64px + env(safe-area-inset-top))}
-.circ-h{display:grid;grid-template-columns:36px 1fr auto;column-gap:12px;row-gap:2px;align-items:center;padding:0 0 12px;border-bottom:1px solid var(--line)}
-.circ-ic{grid-row:1/3;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--fill-2)}
-.circ-ic svg{width:20px;height:20px;stroke:var(--tx2)}
-.circ-t{display:contents}
-.circ-t b{grid-column:2;grid-row:1;font:800 var(--fs-20)/1.2 var(--disp)}
-.circ-t small{grid-column:2/4;grid-row:2;font:500 var(--fs-13)/1.3 var(--body);color:var(--mu)}
-.circ-r{grid-column:3;grid-row:1;display:flex;align-items:center;gap:8px;font:600 var(--fs-13) var(--body);color:var(--tx2);white-space:nowrap}
 .pills{display:flex;gap:4px;justify-content:flex-end}
 .pills i{width:20px;height:6px;border-radius:3px;background:var(--s3)}
 .pills i.d{background:var(--ok)}.pills i.c{background:var(--acc)}
-.circ.all .circ-r{color:var(--ok)}
-.circ.all .circ-h{border-bottom:0;padding-bottom:4px}
-.circ.all .circ-done{margin-top:8px;border-top:1px solid var(--line)}
-.circ.all .circ-done .cr:last-child{border-bottom:0}
-.circ-done .cr{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:0;border-bottom:1px solid var(--line)}
 .crk{display:inline-flex;align-items:center;gap:6px;flex:none;font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ok)}
 .crk svg{width:14px;height:14px;stroke:var(--ok);stroke-width:3}
 .crv{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;min-width:0}
 .crv button{min-height:44px;padding:0 4px;font:600 var(--fs-13) var(--body);color:var(--tx2);white-space:nowrap}
 .crv button:last-child{padding-right:0}
 .crv button+button::before{content:'·';margin-right:6px;color:var(--dim)}
-.circ-st{list-style:none;margin:8px 0 0;padding:0}
-.circ-st:empty{display:none}
-/* станции переопределяют .ex/.set — поэтому этот блок ниже */
-.circ .cs{position:relative;padding-left:40px;min-height:64px;margin:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible}
-.circ .cs::before{content:'';position:absolute;left:13px;top:40px;bottom:-6px;width:2px;border-radius:1px;background:var(--line)}
-.circ .cs .node{position:absolute;left:0;top:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--s3);color:var(--tx2);font:800 var(--fs-13)/1 var(--disp)}
-.circ .cs .node svg{width:16px;height:16px;stroke:currentColor;stroke-width:3}
-.circ .cs.done .node{background:var(--ok);color:var(--ok-ink)}
-.circ .cs.cur .node{background:var(--acc);color:var(--ink)}
-.circ .cs .set.c{grid-template-columns:1fr 56px;column-gap:12px;padding:6px 0;border:0;background:transparent;border-radius:0}
-.circ .cs .set::before{display:none}
-.circ .cs .sv{display:block;min-height:48px;padding:0;text-align:left}
-.circ .role{display:block;font:600 var(--fs-11)/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
-.circ .nm{display:block;font:700 var(--fs-17)/1.25 var(--body);color:var(--tx);margin:0}
-.circ .cs .tv{display:block;margin-top:2px;font:700 var(--fs-15)/1.2 var(--disp);color:var(--tx2)}
-.circ .cs .ck{width:56px;height:48px}
-.circ .cs .ck.big{width:56px;height:auto;min-height:56px}
-.circ .cs.done .set.c{background:transparent}
-.circ .cs.skipst .nm{color:var(--mu)}
-.circ .cs.skipst .node{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line-strong);color:var(--mu)}
-.cs-skip{padding:2px 0 12px;font:500 var(--fs-13) var(--body);color:var(--mu)}
-.cs-skip button{min-height:44px;margin-left:6px;color:var(--acc);font-weight:600}
-.circ .cs .cs-hd{padding:14px 0 2px}
 /* текущая станция: золотой номер и тонкие линии сверху и снизу — без вложенной плашки */
-.circ .cs.open{padding-bottom:12px}
-.circ .cs.open::after{content:'';position:absolute;left:40px;right:0;top:0;bottom:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);pointer-events:none}
-.circ .cs.open:first-child::after{border-top:0}
-.circ .cs.open .mynote{width:100%;margin:8px 0 0}
-.circ .cs.open .sets{padding:4px 0 0}
-.circ .cs .set.x{grid-template-columns:1fr 56px;column-gap:12px;padding:4px 0;margin:2px 0 0}
-.circ .cs .set.x .si{display:none}
-.circ .cs .set.x.done{background:transparent}
 /* инструменты станции — строка иконок; подписи — в aria-label */
-.cs-tools{position:relative;display:flex;gap:8px;margin-top:8px}
-.cs-tools button{width:48px;height:44px;border-radius:var(--r-md);display:grid;place-items:center;background:var(--fill);color:var(--tx2)}
-.cs-tools button:active{background:var(--fill-2)}
-.cs-tools svg{width:20px;height:20px;stroke:var(--tx2)}
-.cs-rest{position:relative;display:flex;align-items:center;min-height:44px;padding-left:40px;font:500 var(--fs-13) var(--body);color:var(--mu)}
-.cs-rest .node{position:absolute;left:0;top:8px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--line-strong)}
-.cs-rest .node svg{width:14px;height:14px;stroke:var(--mu)}
 
 /* ===== TIMER ===== */
 .timer{position:fixed;left:12px;right:12px;bottom:calc(68px + env(safe-area-inset-bottom));max-width:576px;margin:0 auto;z-index:11;display:none;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 12px 12px 16px;overflow:hidden;border-radius:var(--r-xl);color:var(--tx);font-family:var(--body);background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);box-shadow:var(--float)}

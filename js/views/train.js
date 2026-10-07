@@ -1,4 +1,4 @@
-// Экран «Тренировка»: карточки упражнений, подходы, разминка, круг пресса, таймер.
+// Экран «Тренировка»: карточки упражнений (пресс — последней), подходы, разминка, таймер.
 import {$, $$, toast, dismissToast, CK, ICON, openSheet, closeSheet, sheetHead, fadeRows} from '../ui.js';
 import {state, draft, updDB, dropDraft} from '../store.js';
 import * as P from '../program.js';
@@ -38,23 +38,14 @@ export function renderTrain() {
   ${hasMarks(c) ? '<button class="textbtn" id="reset">Сбросить отметки</button>' : ''}`;
   $('#v-train').innerHTML = h;
   fadeRows($('#v-train'));
-  items.filter(it => !isCore(it)).forEach(it => renderCard(it));
-  renderCirc();
+  items.forEach(it => renderCard(it));
   updSession();
   bindTrain(k, live);
   if (live === k) keepAwake(true);
 }
 
-// Обычные упражнения — карточками; подряд идущие упражнения пресса — одним кругом.
-function listHtml(items) {
-  let circ = false;
-  return items.map(it => {
-    if (!isCore(it)) return `<div class="ex" id="ex-${esc(slotOf(it))}" data-slot="${esc(slotOf(it))}"></div>`;
-    if (circ) return '';
-    circ = true;
-    return '<section class="circ" id="circ"></section>';
-  }).join('');
-}
+// Каждое упражнение (и пресс в конце) — своей карточкой.
+const listHtml = items => items.map(it => `<div class="ex" id="ex-${esc(slotOf(it))}" data-slot="${esc(slotOf(it))}"></div>`).join('');
 
 // Есть ли что сбрасывать: отмеченные подходы или разминка.
 const hasMarks = c => Object.values(c.ex).some(r => r.some(x => x.done)) || Object.values(c.warm).some(w => w.some(Boolean));
@@ -131,13 +122,10 @@ function photoFor(id, e) {
 }
 
 const toolsHtml = skip => `<div class="tools"><button data-act="tech">${ICON.info}Техника</button><button data-act="swap">${ICON.swap}Заменить</button><button data-act="note">${ICON.note}Заметка</button><button data-act="skip">${ICON.skip}${skip ? 'Вернуть' : 'Пропустить'}</button></div>`;
-const CS_TOOLS = [['tech', 'info', 'Техника'], ['swap', 'swap', 'Заменить'], ['note', 'note', 'Заметка'], ['skip', 'skip', 'Пропустить']];
-const csToolsHtml = () => `<div class="cs-tools">${CS_TOOLS.map(([a, ic, t]) => `<button data-act="${a}" aria-label="${t}" title="${t}">${ICON[ic]}</button>`).join('')}</div>`;
 const swpHtml = (db, it) => it.orig ? `<div class="swp">вместо «${esc(P.exOf(db, it.orig).n)}» · <button data-act="unswap">вернуть</button></div>` : '';
 const noteBtn = note => note ? `<button class="mynote" data-act="note">${ICON.note}${esc(note)}</button>` : '';
 
 function renderCard(it, justK) {
-  if (isCore(it)) return renderCirc(slotOf(it), justK);
   const k = WK.curKey(), db = state.db, e = P.exOf(db, it.id), slot = slotOf(it), c = draft(k);
   const el = $('#ex-' + CSS.escape(slot));
   if (!el) return;
@@ -149,7 +137,7 @@ function renderCard(it, justK) {
   const pic = photoFor(it.id, e), note = P.noteOf(db, it.id);
   el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '');
   let h = `${pic ? `<div class="exp"><img src="${pic}" alt="" loading="lazy"></div>` : ''}
-  <div class="exh"><div class="no">${idxOf(slot) + 1} из ${WK.itemsFor(k).length}</div>
+  <div class="exh"><div class="no">${idxOf(slot) + 1} из ${WK.itemsFor(k).length}${isCore(it) ? ` · пресс${P.ROLE[e.cr] ? ': ' + esc(P.ROLE[e.cr].toLowerCase()) : ''}` : ''}</div>
    <h3>${esc(e.n)}${e.knee && WK.kneeTracked() ? '<span class="kn" title="Упражнение нагружает колени">нагрузка на колени</span>' : ''}<span class="okb">✓ Готово</span></h3>
    <div class="tg">${tlab}${best ? ' · рекорд ' + fmtN(best.a) + '×' + best.b : ''}</div>
    ${swpHtml(db, it)}</div>
@@ -191,16 +179,6 @@ function setStr(t, e) {return e.map(x => t === 'w' ? `${fmtN(x.a)}×${x.b}` : `$
 const valStr = (e, x) => e.t === 'w' ? (x.a === '' ? `${x.b === '' ? '—' : x.b} повт` : `${fmtN(x.a)} кг × ${x.b === '' ? '—' : x.b}`) : `${x.b === '' ? '—' : x.b} ${e.t === 't' ? 'с' : e.t === 'c' ? 'мин' : 'повт'}`;
 const prevStr = (e, Ls, j) => {const p = Ls && (Ls.e[j] || null); return p ? (e.t === 'w' ? `${fmtN(p.a)}×${p.b}` : String(p.b)) : '';};
 
-function rowOpen(e, x, j, isNext, just, Ls, label = `подход ${j + 1}`) {
-  const tg = f => !x.done && !(f === 'w' ? x.edA : x.edB) ? ' tgt' : '';
-  const stp = (f, val, unit, mode, ph) => `<div class="stp"><button data-act="${f}m" aria-label="Меньше">−</button><label><input class="n${tg(f)}" inputmode="${mode}" data-f="${f === 'w' ? 'a' : 'b'}" value="${esc(ruDec(val))}" placeholder="${ph}" aria-label="${unit}, ${label}"><span>${unit}</span></label><button data-act="${f}p" aria-label="Больше">+</button></div>`;
-  const was = prevStr(e, Ls, j);
-  return `<div class="set x ${x.done ? 'done' : ''} ${isNext ? 'nx' : ''} ${just ? 'just' : ''}" data-k="${j}"><span class="si">${j + 1}</span>
-  <div class="ins">${e.t === 'w' ? stp('w', x.a, 'кг', 'decimal', '—') : ''}${stp('r', x.b, UNIT_S[e.t], 'numeric', '—')}
-  ${was ? `<small class="was n">было ${was}</small>` : ''}</div>
-  <div class="side"><button class="ck big" data-act="ck" aria-pressed="${x.done}" aria-label="${label[0].toUpperCase() + label.slice(1)} выполнен">${CK}</button></div></div>`;
-}
-
 function warmHtml(k, it, e, rows, Ls) {
   const sk = draft(k).skip, plan = L.warmPlan(WK.itemsFor(k).filter(x => !sk[x.id]), id => P.exOf(state.db, id));
   if (!plan[it.id]) return '';
@@ -211,51 +189,6 @@ function warmHtml(k, it, e, rows, Ls) {
   return `<div class="seth wuh"><span></span><span>Разминка</span><span></span></div>` + sets.map((s, j) => `<div class="set ${tblCls(e, Ls)} wu ${done[j] ? 'done' : ''}"><span class="si" aria-hidden="true"></span>
     ${Ls ? '<span class="pv"></span>' : ''}<span class="wv n">${fmtN(s.a)}</span><span class="wv n">${s.b}</span>
     <button class="ck" data-act="warm" data-w="${j}" aria-label="Разминка ${j + 1} ${done[j] ? 'выполнена' : 'отметить'}">${CK}</button></div>`).join('');
-}
-
-// ---- круг пресса: один блок, станции по порядку, один ✓ на станцию в текущем круге ----
-function coreItems(k) {return WK.itemsFor(k).filter(isCore);}
-
-function renderCirc(justSlot, justK) {
-  const el = $('#circ');
-  if (!el) return;
-  const k = WK.curKey(), db = state.db, c = draft(k), its = coreItems(k);
-  const st = its.map(it => ({it, e: P.exOf(db, it.id), rows: WK.rowsFor(k, it), skip: !!c.skip[it.id]}));
-  const {rounds, round, cur} = WK.circuitState(st);
-  const last = its[its.length - 1], [ph] = WK.splitKey(k), rest = last ? WK.restFor(last, ph) : 0, all = cur === -1;
-  const pills = Array.from({length: rounds}, (_, r) => `<i class="${all || r < round ? 'd' : r === round ? 'c' : ''}"></i>`).join('');
-  el.className = 'circ' + (all ? ' all' : '');
-  let h = `<header class="circ-h"><span class="circ-ic">${ICON.core}</span>
-    <div class="circ-t"><b>Пресс</b><small>Подряд без отдыха${rest ? ` · ${rest} с после круга` : ''}</small></div>
-    <div class="circ-r"><span class="n">${all ? 'Готово' : `Круг ${round + 1} из ${rounds}`}</span><span class="pills">${pills}</span></div></header>`;
-  const doneRounds = Math.min(round, rounds);
-  if (doneRounds) {
-    h += `<div class="circ-done">${Array.from({length: doneRounds}, (_, r) => `<div class="cr"><span class="crk">${CK}Круг ${r + 1}</span><span class="crv">${st.filter(s => !s.skip && s.rows[r]).map(s => `<button class="n" data-act="open" data-slot="${esc(slotOf(s.it))}" data-k="${r}">${valStr(s.e, s.rows[r])}</button>`).join('')}</span></div>`).join('')}</div>`;
-  }
-  h += `<ol class="circ-st">${st.map((s, i) => stationHtml(s, i, {round, cur, all}, justSlot, justK)).join('')}`;
-  if (!all) h += `<li class="cs-rest"><span class="node">${ICON.clock}</span>${round < rounds - 1 ? `Отдых ${rest} с → круг ${round + 2}` : 'Последний круг'}</li>`;
-  el.innerHTML = h + '</ol>';
-}
-
-function stationHtml(s, i, {round, cur, all}, justSlot, justK) {
-  const db = state.db, k = WK.curKey(), {it, e, rows, skip} = s, slot = slotOf(it), role = P.ROLE[e.cr] || '';
-  const forced = open[slot], isCur = i === cur, j = forced ?? Math.min(round, rows.length - 1), x = rows[j];
-  const isOpen = !skip && (isCur || forced !== undefined) && x;
-  const done = !skip && !isCur && x && x.done;
-  if (all && forced === undefined) return '';
-  const cls = `ex inblk cs${done ? ' done' : ''}${isCur ? ' cur' : ''}${isOpen ? ' open' : ''}${skip ? ' skipst' : ''}`;
-  const node = skip ? '–' : done ? CK : String(i + 1);
-  const head = `<li class="${cls}" id="ex-${esc(slot)}" data-slot="${esc(slot)}"><span class="node">${node}</span>`;
-  if (skip) return `${head}<div class="cs-hd"><small class="role">${esc(role)}</small><b class="nm">${esc(e.n)}</b></div><p class="cs-skip">Пропущено <button data-act="skip">Вернуть</button></p></li>`;
-  if (!isOpen) {
-    return `${head}<div class="set c${x.done ? ' done' : ''}${slot === justSlot && j === justK ? ' just' : ''}" data-k="${j}">
-      <button class="sv" data-act="open" aria-label="${esc(e.n)}, круг ${j + 1}${x.done ? ' выполнен — изменить' : ''}"><small class="role">${esc(role)}</small><b class="nm">${esc(e.n)}</b><span class="tv n">${valStr(e, x)}</span></button>
-      ${x.done ? '' : `<button class="ck" data-act="ck" aria-label="${esc(e.n)}, круг ${j + 1} отметить">${CK}</button>`}</div></li>`;
-  }
-  const Ls = L.lastFor(db.sessions, it.id), note = P.noteOf(db, it.id);
-  return `${head}<div class="cs-hd"><small class="role">${esc(role)}${role ? ' · ' : ''}круг ${j + 1}</small><b class="nm">${esc(e.n)}</b>${swpHtml(db, it)}${noteBtn(note)}</div>
-    <div class="sets">${rowOpen(e, x, j, isCur && !x.done, slot === justSlot && j === justK, Ls, `круг ${j + 1}`)}</div>
-    ${csToolsHtml()}</li>`;
 }
 
 // ---- нажатия ----
@@ -308,16 +241,7 @@ function onTap(ev) {
   if (act === 'warm') return tapWarm(k, it, +b.dataset.w);
   const j = +(b.dataset.k ?? b.closest('.set').dataset.k), rows = WK.rowsFor(k, it), x = rows[j];
   if (!x) return;
-  if (act === 'open') {open[slot] = j; return rerender(it);}
   if (act === 'del') {WK.removeSet(k, it, j); delete open[slot]; return rerender(it);}
-  if (act === 'wm' || act === 'wp') {
-    // «−» на пустом или нулевом весе ничего не делает: 0 кг в подход не попадает; «+» на пустом — от минимума тренажёра
-    const st = P.stepOf(state.db, it.id), cur = +x.a || 0;
-    if (act === 'wm' && !(cur > 0)) {haptic(5); return;}
-    const next = act === 'wp' && !(cur > 0) ? Math.max(st, EQUIP[e.img]?.min || 0) : cur + (act === 'wp' ? st : -st);
-    WK.editField(k, it, j, 'a', Math.max(0, Math.round(next * 100) / 100)); haptic(5); return rerender(it, j);
-  }
-  if (act === 'rm' || act === 'rp') {const st = e.t === 't' ? 5 : 1, cur = +x.b || 0; WK.editField(k, it, j, 'b', Math.max(0, cur + (act === 'rp' ? st : -st))); haptic(5); return rerender(it, j);}
   if (act === 'ck') return tapCheck(k, it, j, x, e);
 }
 
@@ -350,17 +274,17 @@ function tapCheck(k, it, j, x, e) {
     const rows = WK.rowsFor(k, it), allDone = rows.every(r => r.done);
     renderCard(itemBySlot(slot), j);
     updSession();
-    const [ph] = WK.splitKey(k), rest = WK.restFor(it, ph), circ = WK.circuitNext(k, it);
-    if (circ) {
-      // круг: следующее упражнение круга; отдых только после последнего в раунде
-      const name = P.exOf(state.db, circ.id).n;
-      goTo(circ, 350, !it.ss);
+    const [ph] = WK.splitKey(k), rest = WK.restFor(it, ph), pair = WK.circuitNext(k, it);
+    if (pair) {
+      // суперсет: сразу второе упражнение пары; отдых — после последнего в паре
+      const name = P.exOf(state.db, pair.id).n;
+      goTo(pair, 350, !it.ss);
       if (it.ss) {stopRest(); toast('Дальше без отдыха: ' + name);}
-      else startRest(rest, 'Круг готов · далее: ' + name);
+      else startRest(rest, 'Суперсет готов · далее: ' + name);
       return;
     }
     const nxt = nextUp(k, slot);
-    if (allDone && nxt) {toast('✓ ' + (isCore(it) ? 'Пресс' : e.n) + ' — готово', null, DONE_TOAST_MS, 'top'); goTo(nxt, 450);}
+    if (allDone && nxt) {toast('✓ ' + e.n + ' — готово', null, DONE_TOAST_MS, 'top'); goTo(nxt, 450);}
     else if (allDone) {dismissToast(); goFinish(450);}
     const label = allDone ? (nxt ? 'Далее: ' + P.exOf(state.db, nxt.id).n : 'Последнее упражнение позади') : `Далее: подход ${j + 2} · ${valStr(e, rows[j + 1] || x)}`;
     if (rest) startRest(allDone ? Math.min(rest, 90) : rest, label); else stopRest();
@@ -414,7 +338,7 @@ export function scrollToCurrent() {
   const hasDone = items.some(it => (c.ex[it.id] || []).some(x => x.done));
   const target = hasDone ? curItem(k) : null;
   const card = target ? $('#ex-' + CSS.escape(slotOf(target))) : null;
-  const n = (card && (card.querySelector('.set.nx') || card)) || $('#list .set.nx') || $('#list .set.x');
+  const n = (card && (card.querySelector('.set.nx') || card)) || $('#list .set.nx');
   if (n) n.scrollIntoView({block: card && !card.querySelector('.set.nx') ? 'start' : 'center'});
 }
-function renderAll() {WK.itemsFor(WK.curKey()).filter(x => !isCore(x)).forEach(x => renderCard(x)); renderCirc(); updSession();}
+function renderAll() {WK.itemsFor(WK.curKey()).forEach(x => renderCard(x)); updSession();}

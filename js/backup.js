@@ -1,8 +1,10 @@
 // Проверка, нормализация, слияние и упаковка данных. Без DOM — тестируется в node.
 import {DAY} from './format.js';
 import {EQUIP} from './data/equipment.js';
+import {EX} from './data/exercises.js';
+import {CORE_ROLES} from './builder.js';
 
-export const DB_V = 2;
+export const DB_V = 3;
 const PHASES = ['p1', 'p2', 'p3'];
 const TYPES = ['w', 'r', 't', 'c'];
 const STEPS = [0.5, 1, 1.25, 2, 2.5, 4, 5, 10];
@@ -72,6 +74,24 @@ function normPlan(p) {
   return out;
 }
 
+// v3: пресс кругом из трёх → одно упражнение в конце тренировки. Оставляем то, чей тип по очереди дня
+// (как в builder.js: скручивание → стабилизация → бок, на каждом этапе со сдвигом). Один раз — свои правки v3 не трогаем.
+function oneCore(plan) {
+  if (!plan) return plan;
+  return Object.fromEntries(Object.entries(plan).map(([ph, p]) => {
+    const pi = Math.max(0, PHASES.indexOf(ph));
+    const w = Object.fromEntries(Object.entries(p.w).map(([wo, items], di) => {
+      const core = items.filter(x => x.blk === 'core');
+      if (core.length < 2) return [wo, items];
+      const roleAt = k => CORE_ROLES[(di + pi + k) % CORE_ROLES.length];
+      const keep = CORE_ROLES.map((_, k) => core.find(x => EX[x.id] && EX[x.id].cr === roleAt(k))).find(Boolean) || core[0];
+      const {ss, ...one} = keep;
+      return [wo, [...items.filter(x => x.blk !== 'core'), one]];
+    }));
+    return [ph, {...p, w}];
+  }));
+}
+
 function normCustom(c) {
   const out = {};
   if (!obj(c)) return out;
@@ -101,7 +121,7 @@ export function normalizeDB(raw) {
   db.phase = PHASES.includes(d.phase) ? d.phase : 'p1';
   db.wo = typeof d.wo === 'string' ? d.wo : 'А';
   if (obj(d.ach)) Object.entries(d.ach).forEach(([k, v]) => {if (okDate(v)) db.ach[k] = v;});
-  db.plan = normPlan(d.plan);
+  db.plan = (+d.v || 1) < 3 ? oneCore(normPlan(d.plan)) : normPlan(d.plan);
   db.custom = normCustom(d.custom);
   db.exs = normExs(d.exs);
   db.lastBackup = okDate(d.lastBackup) ? d.lastBackup : null;

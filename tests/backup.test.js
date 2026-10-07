@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyDB, normalizeDB, parseBackup, mergeDB, makeBackup, backupDue, isEmpty} from '../js/backup.js';
+import {emptyDB, normalizeDB, parseBackup, mergeDB, makeBackup, backupDue, isEmpty, DB_V} from '../js/backup.js';
 
 const sess = (id, date, entries = {lat: [{a: 40, b: 10}]}) => ({id, date, phase: 'p1', wo: 'А', knee: 1, entries});
 
@@ -12,7 +12,7 @@ test('normalizeDB fills defaults for garbage input', () => {
     assert.ok(Array.isArray(db.waist));
     assert.equal(typeof db.ach, 'object');
     assert.equal(db.phase, 'p1');
-    assert.equal(db.v, 2);
+    assert.equal(db.v, DB_V);
   }
 });
 
@@ -108,7 +108,7 @@ test('mergeDB never deletes newer local workouts', () => {
 test('makeBackup wraps data with a version and date', () => {
   const b = makeBackup(emptyDB(), [], new Date('2026-10-06T10:00:00Z'));
   assert.equal(b.app, 'gym');
-  assert.equal(b.v, 2);
+  assert.equal(b.v, DB_V);
   assert.equal(b.exportedAt, '2026-10-06T10:00:00.000Z');
 });
 
@@ -256,4 +256,22 @@ test('session pain values are clamped and kept per joint', () => {
   const db = normalizeDB({sessions: [{id: 1, date: '2026-10-01T10:00:00Z', pain: {back: 12, shoulder: '4', bad: 3}, entries: {lat: [{a: 40, b: 10}]}}]});
   assert.deepEqual(db.sessions[0].pain, {back: 10, shoulder: 4});
   assert.equal(db.sessions[0].knee, null);
+});
+
+// v2 → v3: пресс кругом из трёх → одно упражнение на тренировку (по очереди: скручивание → стабилизация → бок).
+test('migration v3: saved plans keep one core exercise per workout, types rotate by day; v3 plans are left alone', () => {
+  const core3 = [{id: 'deadbug', s: 2, r: '8', n: '', ss: 1, blk: 'core'}, {id: 'crunch', s: 2, r: '15', n: '', ss: 1, blk: 'core'}, {id: 'pallof', s: 2, r: '12', n: '', blk: 'core'}];
+  const ph = {label: 'x', sub: '', hint: '', w: {'А': [{id: 'legpress', s: 2, r: '15', n: ''}, ...core3], 'Б': [{id: 'lat', s: 2, r: '12', n: ''}, ...core3]}};
+  const plan = {p1: ph, p2: ph, p3: ph};
+  const db = normalizeDB({...emptyDB(), v: 2, plan});
+  const coreOf = (p, wo) => p.w[wo].filter(x => x.blk === 'core');
+  assert.deepEqual(coreOf(db.plan.p1, 'А').map(x => x.id), ['crunch']);
+  assert.deepEqual(coreOf(db.plan.p1, 'Б').map(x => x.id), ['deadbug']);
+  assert.ok(!coreOf(db.plan.p1, 'А')[0].ss);
+  assert.equal(db.plan.p1.w['А'].at(-1).id, 'crunch');
+  assert.equal(db.plan.p1.w['А'][0].id, 'legpress');
+  assert.deepEqual(coreOf(db.plan.p2, 'А').map(x => x.id), ['deadbug'], 'следующий этап начинает с другого типа');
+  assert.equal(db.v, 3);
+  const mine = normalizeDB({...emptyDB(), v: 3, plan});
+  assert.equal(coreOf(mine.plan.p1, 'А').length, 3, 'план v3 — как его сделал владелец');
 });

@@ -63,26 +63,27 @@ test('no power rack: no barbell bench press, overhead press or squat (those go i
   }
 });
 
-test('every workout ends with a 3-part core circuit: stability → flexion → anti-rotation/side', async () => {
+// Пресс — одно упражнение в конце тренировки, обычными подходами с отдыхом. Разные дни — разные упражнения и типы.
+test('every workout ends with exactly one core exercise — no circuit', async () => {
   const {toItem} = await import('../js/program.js');
-  const ORDER = ['stab', 'flex', 'side'];
   for (const [ph, p] of Object.entries(W)) for (const [wo, raw] of Object.entries(p.w)) {
     const items = raw.map(toItem), core = items.filter(x => x.blk === 'core');
-    assert.equal(core.length, 3, `${ph}/${wo}: 3 упражнения пресса`);
-    assert.deepEqual(core.map(x => EX[x.id].cr), ORDER, `${ph}/${wo}: порядок`);
-    assert.deepEqual(items.slice(-3).map(x => x.id), core.map(x => x.id), `${ph}/${wo}: пресс в конце`);
-    assert.deepEqual(core.map(x => !!x.ss), [true, true, false], `${ph}/${wo}: круг`);
-    assert.equal(new Set(core.map(x => x.s)).size, 1, `${ph}/${wo}: одинаковое число кругов`);
+    assert.equal(core.length, 1, `${ph}/${wo}: одно упражнение на пресс`);
+    assert.equal(items.at(-1).id, core[0].id, `${ph}/${wo}: пресс в конце`);
+    assert.ok(!core[0].ss, `${ph}/${wo}: без круга`);
+    assert.equal(EX[core[0].id].g, 'core', `${ph}/${wo}: это упражнение на пресс`);
   }
 });
 
-test('core work is varied: no exercise repeats within a phase week more than twice', () => {
+test('core varies: within a phase every day has its own exercise, types cover min(3, days); phases differ', async () => {
+  const {toItem} = await import('../js/program.js');
+  const coreOf = p => Object.values(p.w).map(raw => raw.map(toItem).find(x => x.blk === 'core').id);
   for (const [ph, p] of Object.entries(W)) {
-    const n = {};
-    Object.values(p.w).flat().filter(x => x[4] && x[4].blk === 'core').forEach(x => n[x[0]] = (n[x[0]] || 0) + 1);
-    Object.entries(n).forEach(([id, c]) => assert.ok(c <= 2, `${ph}: ${id} ×${c}`));
-    if (Object.keys(p.w).length >= 4) assert.ok(Object.keys(n).length >= 7, `${ph}: разнообразие ${Object.keys(n).length}`);
+    const ids = coreOf(p);
+    assert.equal(new Set(ids).size, ids.length, `${ph}: повтор ${ids}`);
+    assert.ok(new Set(ids.map(id => EX[id].cr)).size >= Math.min(3, ids.length), `${ph}: типы ${ids}`);
   }
+  assert.notDeepEqual(coreOf(W.p2), coreOf(W.p3), 'Основа и Прогресс — разный пресс');
 });
 
 test('every core exercise has a role', () => {

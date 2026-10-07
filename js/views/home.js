@@ -113,12 +113,12 @@ function trendHtml(db, now) {
 // «≈ 25,9 слона»: дробное число — всегда «слона».
 const elephants = kg => {const v = r1(kg / 5000); return '≈ ' + fmtN(v, 1) + ' ' + (v % 1 ? 'слона' : plural(v, 'слон', 'слона', 'слонов'));};
 
-// Первые два упражнения, «+N» за остальные, и один чип круга пресса.
+// Первые два упражнения, «+N» за остальные, и чип упражнения на пресс.
 function chips(db, items) {
   const main = items.filter(x => x.blk !== 'core' && P.exOf(db, x.id).g !== 'cardio'), core = items.filter(x => x.blk === 'core');
   let h = main.slice(0, 2).map(x => `<span>${esc(P.exOf(db, x.id).n)}</span>`).join('');
   if (main.length > 2) h += `<span class="more">+${main.length - 2}</span>`;
-  if (core.length) h += `<span class="core">${ICON.core}Пресс · ${core[0].s} ${plural(core[0].s, 'круг', 'круга', 'кругов')}</span>`;
+  if (core.length) h += `<span class="core">${ICON.core}Пресс: ${esc(P.exOf(db, core[0].id).n)}</span>`;
   return h;
 }
 

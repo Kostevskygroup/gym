@@ -28,12 +28,22 @@ test('painful joints exclude heavy-load exercises and prefer gentle ones', () =>
   }
 });
 
-test('every day ends with a 3-move core circuit in the fixed order', () => {
-  for (const d of [2, 3, 4, 5]) for (const items of days(buildProgram({...base, days: d}, EX))) {
-    const core = items.slice(-3);
-    assert.deepEqual(core.map(x => EX[x.id].cr), ['stab', 'flex', 'side']);
-    assert.deepEqual(core.map(x => !!x.ss), [true, true, false]);
-    assert.ok(core.every(x => x.blk === 'core'));
+test('every day ends with exactly one core exercise; days and phases vary it', () => {
+  for (const d of [2, 3, 4, 5]) {
+    const p = buildProgram({...base, days: d}, EX);
+    const coreOf = ph => Object.values(p[ph].w).map(items => {
+      const its = items.map(toItem), core = its.filter(x => x.blk === 'core');
+      assert.equal(core.length, 1, `${d} дн. ${ph}: одно упражнение на пресс`);
+      assert.equal(its.at(-1).blk, 'core', 'пресс в конце');
+      assert.ok(!core[0].ss, 'без круга');
+      return core[0].id;
+    });
+    for (const ph of ['p1', 'p2', 'p3']) {
+      const ids = coreOf(ph);
+      assert.equal(new Set(ids).size, ids.length, `${d} дн. ${ph}: разные упражнения`);
+      assert.ok(new Set(ids.map(id => EX[id].cr)).size >= Math.min(3, d), `${d} дн. ${ph}: типы`);
+    }
+    assert.notDeepEqual(coreOf('p1'), coreOf('p2'), `${d} дн.: этапы отличаются`);
   }
 });
 

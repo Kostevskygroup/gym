@@ -229,37 +229,12 @@ test('marking a set on a stale draft is refused', () => {
   assert.equal(WK.rowsFor(K, it)[1].done, false);
 });
 
-test('circuit: after a set, go to the next exercise in the circuit, then back to the first', () => {
+test('core is one exercise at the end with normal rest; no circuit hops', () => {
   const items = WK.itemsFor(K), core = items.filter(x => x.blk === 'core');
-  assert.equal(core.length, 3);
-  assert.equal(WK.circuitNext(K, core[0]).id, core[1].id);
-  assert.equal(WK.circuitNext(K, core[1]).id, core[2].id);
-  const [a, b, c] = core;
-  [a, b, c].forEach(x => {WK.editField(K, x, 0, 'a', 10); WK.markSet(K, x, 0, true);});
-  assert.equal(WK.circuitNext(K, c).id, a.id);
-  assert.equal(WK.circuitNext(K, items[1]), null);
-});
-
-test('rest: core circuit rests only after the last exercise of the round', () => {
-  const core = WK.itemsFor(K).filter(x => x.blk === 'core');
-  assert.equal(WK.restFor(core[0], 'p2'), 0);
-  assert.equal(WK.restFor(core[2], 'p2'), 60);
-});
-
-test('circuitState: walks stations in order, round by round', () => {
-  const st = (...rows) => ({rows: rows.map(done => ({done}))});
-  assert.deepEqual(WK.circuitState([st(0, 0, 0), st(0, 0, 0), st(0, 0, 0)]), {rounds: 3, round: 0, cur: 0});
-  assert.deepEqual(WK.circuitState([st(1, 0, 0), st(0, 0, 0), st(0, 0, 0)]), {rounds: 3, round: 0, cur: 1});
-  assert.deepEqual(WK.circuitState([st(1, 0, 0), st(1, 0, 0), st(1, 0, 0)]), {rounds: 3, round: 1, cur: 0});
-  assert.deepEqual(WK.circuitState([st(1, 1, 1), st(1, 1, 1), st(1, 1, 1)]), {rounds: 3, round: 3, cur: -1});
-});
-
-test('circuitState: skipped stations are ignored, uneven row counts work', () => {
-  const st = (...rows) => ({rows: rows.map(done => ({done}))});
-  assert.deepEqual(WK.circuitState([{...st(0, 0), skip: true}, st(0, 0), st(0, 0)]), {rounds: 2, round: 0, cur: 1});
-  assert.deepEqual(WK.circuitState([st(1, 1), st(1, 1, 0), st(1, 1)]), {rounds: 3, round: 2, cur: 1});
-  assert.deepEqual(WK.circuitState([st(1, 0), st(1, 1, 1), st(1, 0)]), {rounds: 3, round: 1, cur: 0});
-  assert.deepEqual(WK.circuitState([{...st(0), skip: true}]), {rounds: 0, round: 0, cur: -1});
+  assert.equal(core.length, 1);
+  assert.equal(items.at(-1).id, core[0].id);
+  assert.equal(WK.circuitNext(K, core[0]), null);
+  assert.equal(WK.restFor(core[0], 'p2'), 60);
 });
 
 test('pain: asks only for tracked joints the saved exercises load, and saves them per joint', () => {

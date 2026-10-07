@@ -46,6 +46,8 @@ function reps(goal, ph, mech, e) {
   if (mech === 'compound') return {p1: '12–15', p2: '10–12', p3: '8–10'}[ph];
   return {p1: '12–15', p2: '12–15', p3: '10–12'}[ph];
 }
+// Порядок типов пресса по дням: скручивание → стабилизация → анти-вращение/бок.
+export const CORE_ROLES = ['flex', 'stab', 'side'];
 const sets = (ph, mech) => ph === 'p1' ? 2 : ph === 'p2' ? 3 : mech === 'compound' ? 4 : 3;
 
 // Выбор упражнения в позицию: безопасно для больных суставов, по уровню, без повторов, с разнообразием.
@@ -69,9 +71,9 @@ function pickFor(lib, g, {pain, level, used, dayUsed, dayEquip, role, preferMech
 }
 
 const HINT = {
-  p1: (d, rir) => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. В запасе ${rir} повтора. Отдых 1–1,5 мин. В конце — пресс кругом.`,
-  p2: d => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. В запасе 1–2 повтора. Отдых 1,5–2 мин в базовых. В конце — пресс кругом.`,
-  p3: d => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. Базовые тяжелее, изолирующие в 10–12. Отдых 2 мин в базе. В конце — пресс кругом.`,
+  p1: (d, rir) => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. В запасе ${rir} повтора. Отдых 1–1,5 мин. В конце — одно упражнение на пресс.`,
+  p2: d => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. В запасе 1–2 повтора. Отдых 1,5–2 мин в базовых. В конце — одно упражнение на пресс.`,
+  p3: d => `${d} ${d < 5 ? 'раза' : 'раз'} в неделю. Базовые тяжелее, изолирующие в 10–12. Отдых 2 мин в базе. В конце — одно упражнение на пресс.`,
 };
 
 // opts: {goal, days, level (1 новичок | 2 с опытом), pain: [суставы], focus: [упор]}; lib — все упражнения.
@@ -89,19 +91,27 @@ export function buildProgram(opts, lib) {
     };
     if (goal === 'fatloss' || isLower(slots) || slots === FULL_A) {const c = take('cardio'); if (c) list.push({id: c, cardio: true});}
     slots.slice(0, MAX_MAIN).forEach((g, i) => {const id = take(g, {preferMech: BIG.has(g) && i < 4 ? 'compound' : 'isolation', big: BIG.has(g) && i < 4}); if (id) list.push({id});});
-    const core = ['stab', 'flex', 'side'].map(role => take('core', {role})).filter(Boolean);
-    return [name, list, core];
+    return [name, list];
   });
   const out = {};
   ['p1', 'p2', 'p3'].forEach((ph, pi) => {
-    const w = {};
-    chosen.forEach(([name, list, core]) => {
+    const w = {}, phaseCore = new Set();
+    // пресс — одно упражнение в конце дня; тип по очереди по дням, на каждом этапе со сдвигом; внутри этапа без повторов
+    const pickCore = di => {
+      for (let k = 0; k < CORE_ROLES.length; k++) {
+        const id = pickFor(lib, 'core', {pain, level, used, dayUsed: phaseCore, dayEquip: new Set(), role: CORE_ROLES[(di + pi + k) % CORE_ROLES.length]});
+        if (id) {phaseCore.add(id); used.set(id, (used.get(id) || 0) + 1); return id;}
+      }
+      return null;
+    };
+    chosen.forEach(([name, list], di) => {
+      const core = pickCore(di);
       w[name] = [
         ...list.map(({id, cardio}) => {
           const e = lib[id], mech = e.mech || (BIG.has(e.g) ? 'compound' : 'isolation');
           return cardio ? {id, s: 1, r: goal === 'fatloss' ? ['10', '12', '15'][pi] : '8', n: ''} : {id, s: sets(ph, mech), r: reps(goal, ph, mech, e), n: ''};
         }),
-        ...core.map((id, i) => ({id, s: ph === 'p1' ? 2 : 3, r: reps(goal, ph, 'isolation', lib[id]), n: '', blk: 'core', ...(i < core.length - 1 ? {ss: 1} : {})})),
+        ...(core ? [{id: core, s: ph === 'p1' ? 2 : 3, r: reps(goal, ph, 'isolation', lib[core]), n: '', blk: 'core'}] : []),
       ];
     });
     out[ph] = {label: ['Втягивание', 'Основа', 'Прогресс'][pi], sub: ['нед. 1–3', 'нед. 4–10', 'нед. 11+'][pi], hint: HINT[ph](days, level === 1 ? 3 : 2), w};

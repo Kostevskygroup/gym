@@ -143,7 +143,7 @@ function groupOf(items, i) {
   while (b < items.length - 1 && items[b].ss) b++;
   return items.slice(a, b + 1);
 }
-// Куда идти после подхода в круге: следующее упражнение круга с незаконченным подходом.
+// Суперсет (ss): после подхода — сразу следующее упражнение пары с незаконченным подходом.
 export function circuitNext(k, it) {
   const items = itemsFor(k), i = items.findIndex(x => (x.orig || x.id) === (it.orig || it.id));
   const g = groupOf(items, i);
@@ -151,17 +151,6 @@ export function circuitNext(k, it) {
   const j = g.findIndex(x => x === items[i]);
   const order = [...g.slice(j + 1), ...g.slice(0, j + 1)];
   return order.find(x => !exDone(k, x)) || null;
-}
-
-// Состояние круга. stations: [{rows:[{done}], skip}] в порядке программы.
-// round — 0-based текущий круг (= число полностью готовых кругов), cur — индекс станции, -1 если всё готово.
-export function circuitState(stations) {
-  const act = stations.map((s, i) => ({...s, i})).filter(s => !s.skip);
-  const rounds = act.length ? Math.max(...act.map(s => s.rows.length)) : 0;
-  const open = s => {const j = s.rows.findIndex(x => !x.done); return j < 0 ? Infinity : j;};
-  const round = act.length ? Math.min(...act.map(open)) : Infinity;
-  if (round === Infinity) return {rounds, round: rounds, cur: -1};
-  return {rounds, round, cur: act.find(s => s.rows[round] && !s.rows[round].done).i};
 }
 
 export function restFor(it, phase) {

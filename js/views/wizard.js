@@ -30,7 +30,7 @@ export function openWizard(mode, after) {
     <div class="tb2"><h4>Что беспокоит · можно несколько</h4>${chipRow('wpain', PAIN_OPTS, a.pain.length ? a.pain : [NONE], true)}<p class="hint2">Тяжёлые для этих суставов упражнения не попадут в программу, а после тренировки я спрошу, как они.</p></div>
     <div class="tb2"><h4>На что сделать упор · не обязательно</h4>${chipRow('wfocus', FOCUS, a.focus, true)}</div>
     <div class="tb2"><h4>Программа</h4>${chipRow('wsrc', SRC, a.src, false)}${first ? '<p class="hint2">«Собрать под меня» — по твоим ответам. «Стандартная» — готовая программа зала: Втягивание → Основа → Прогресс.</p>' : ''}</div>
-    <p class="hint2">${first ? 'Программу можно поменять в любой момент.' : 'Программа на 3 этапа на тренажёрах твоего зала, в конце каждой тренировки — пресс кругом. Её можно править в «Программе».'}</p>
+    <p class="hint2">${first ? 'Программу можно поменять в любой момент.' : 'Программа на 3 этапа на тренажёрах твоего зала, в конце каждой тренировки — одно упражнение на пресс, каждый день другое. Её можно править в «Программе».'}</p>
     <div class="acts"><button class="btn" id="wgo">${cta}</button></div></div>`;
   openSheet(html, sh => {
     sh.querySelectorAll('.chipsel').forEach(box => box.onclick = e => {

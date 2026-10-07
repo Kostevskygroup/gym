@@ -89,12 +89,13 @@ try {
     return {none: true};`);
   ok(!s.none && s.swp, s.none ? 'не нашлось упражнения с заменой' : `заменено ${s.slot} → ${s.to}`);
 
-  console.log('Пресс кругом');
-  const c = await ev(`const core = [...document.querySelectorAll('#list .ex.inblk')]; if (core.length !== 3) return {n: core.length};
-    const first = core[0]; first.querySelector('.set.x [data-act=ck]').click(); ${W(700)}
-    return {n: 3, head: !!document.querySelector('.circ'), timer: document.querySelector('#timer').classList.contains('on'), toast: document.querySelector('#toast').textContent};`);
-  ok(c.n === 3 && c.head, 'блок пресса из 3 упражнений с заголовком');
-  ok(!c.timer && /без отдыха/.test(c.toast), 'внутри круга без отдыха, подсказка куда дальше');
+  console.log('Пресс');
+  const c = await ev(`const cards = [...document.querySelectorAll('#list .ex')], core = cards.filter(x => /пресс/.test(x.querySelector('.no')?.textContent || ''));
+    const last = cards.at(-1), ck = core[0] && core[0].querySelector('.set.nx [data-act=ck]');
+    if (ck) {const inp = core[0].querySelector('.set.nx input[data-f=b]'); if (inp && !inp.value) {inp.value = '10'; inp.dispatchEvent(new Event('input', {bubbles: true}));} ck.click();} ${W(700)}
+    return {n: core.length, last: core[0] === last, circ: !!document.querySelector('.circ'), timer: document.querySelector('#timer').classList.contains('on')};`);
+  ok(c.n === 1 && c.last && !c.circ, 'одно упражнение на пресс — последней карточкой, без круга');
+  ok(c.timer, 'после подхода пресса — обычный отдых');
 
   console.log('Завершение');
   const f = await ev(`document.querySelector('#tstop')?.click(); document.querySelector('#finish').click(); ${W(400)}
