@@ -4,7 +4,8 @@ import {state} from '../store.js';
 import * as P from '../program.js';
 import * as WK from '../workout.js';
 import {prMap, vol} from '../logic.js';
-import {esc, fmtD, fmtN, ruDec, r1, plural, UNIT} from '../format.js';
+import {lastDeltas, deltaTxt} from '../journey.js';
+import {esc, fmtD, fmtN, ruDec, r1, plural} from '../format.js';
 import {ACH} from '../stats.js';
 import {keepAwake, haptic} from '../platform.js';
 import {stopRest} from '../timer.js';
@@ -61,18 +62,8 @@ function save(k) {
   showDone(s, r, k);
 }
 
-function improvements(s) {
-  const exOf = id => P.exOf(state.db, id);
-  const prev = state.db.sessions.filter(x => x.id !== s.id && x.phase === s.phase && x.wo === s.wo).at(-1);
-  if (!prev) return [];
-  return Object.entries(s.entries).flatMap(([id, e]) => {
-    const t = exOf(id).t, before = prev.entries[id];
-    if (!before) return [];
-    if (t === 'w') {const d = vol({entries: {[id]: e}}, exOf) - vol({entries: {[id]: before}}, exOf); return d > 0 ? [`${exOf(id).n}: +${Math.round(d)} кг объёма`] : [];}
-    const d = e.reduce((a, x) => a + x.b, 0) - before.reduce((a, x) => a + x.b, 0);
-    return d > 0 ? [`${exOf(id).n}: +${d} ${UNIT[t]}`] : [];
-  });
-}
+// «Было → стало»: лучший подход каждого упражнения против прошлого раза с ним.
+const improvements = s => {const exOf = id => P.exOf(state.db, id); return lastDeltas(s, state.db.sessions, exOf).map(d => `${exOf(d.id).n}: ${deltaTxt(d)}`);};
 
 export function report(s, prs) {
   const exOf = id => P.exOf(state.db, id), lw = state.db.bw.at(-1);

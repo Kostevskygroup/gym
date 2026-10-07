@@ -14,6 +14,8 @@ import {avatarHtml, openProfiles, inviteFlow} from './profiles.js';
 import {welcomeHtml, bindWelcome, isFresh} from './welcome.js';
 import {openInstall, installRow} from './install.js';
 import * as SY from '../sync.js';
+import {openRoadmap} from './roadmap.js';
+import {monthDeltas, deltaTxt} from '../journey.js';
 
 const greet = () => {const h = new Date().getHours(); return h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';};
 function ringSvg(p) {const c = 2 * Math.PI * 42; return `<svg viewBox="0 0 104 104"><circle class="trk" cx="52" cy="52" r="42" fill="none" stroke-width="10"/><circle class="arc" cx="52" cy="52" r="42" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" data-to="${c * (1 - Math.min(1, p))}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg>`;}
@@ -55,7 +57,7 @@ export function renderHome(go) {
   const streak = st.streak >= 2 ? `${ICON.flame}${st.streak} ${plural(st.streak, 'неделя', 'недели', 'недель')} подряд` : `${S.length} ${plural(S.length, 'тренировка', 'тренировки', 'тренировок')}`;
   const who = db.settings && db.settings.name ? ', ' + esc(db.settings.name) : '';
   let h = warnings() + `<div class="pt has-av"><small>${greet()}${who} · ${day}</small><h1>${S.length ? 'Неделя ' + wk : 'Первая неделя'}</h1>${avatarHtml()}</div>`;
-  if (S.length) h += `<div class="card hero"><div class="l"><span class="eyebrow">Этап ${db.phase.slice(1)}</span><b class="ht">${esc(ph.label)}</b>
+  if (S.length) h += `<div class="card hero tap" id="goroad" role="button" tabindex="0" aria-label="Карта программы"><div class="l"><span class="eyebrow">Этап ${db.phase.slice(1)} из 3 · карта ›</span><b class="ht">${esc(ph.label)}</b>
     <div class="bar${b ? ' wk' : ''}"${b ? ` style="--n:${b - a + 1}"` : ''}><i style="width:${pct * 100}%"></i></div>
     <div class="bl"><span>${b ? 'недели ' + a + '–' + b : 'с недели ' + a}</span><span>${streak}</span></div></div>
   <div class="ringw"><div class="ring${thisW >= T ? ' full' : ''}">${ringSvg(thisW / T)}<div class="c"><b class="n">${thisW}/${T}</b></div></div><small>за неделю</small></div></div>`;
@@ -89,6 +91,7 @@ export function renderHome(go) {
       <div class="st"><small>За 30 дней</small><b class="n">${st.last30}<span>${plural(st.last30, 'тренировка', 'тренировки', 'тренировок')}</span></b><i>всего ${S.length}</i></div>
       ${painTile}</div>`;
   }
+  h += trendHtml(db, now);
   h += bodyCard(db);
   const prs = st.allPRs.slice(-4).reverse();
   if (prs.length) h += `<div class="sec"><b>Последние рекорды</b></div><div class="card prs">${prs.map(p => `<div class="prl"><span class="ic">PR</span><span class="t"><b>${esc(st.exOf(p.id).n)}</b><small class="n">${esc(ruDec(p.txt))}</small></span><span class="dt">${fmtD(p.date)}</span></div>`).join('')}</div>`;
@@ -97,6 +100,14 @@ export function renderHome(go) {
   $('#v-home').innerHTML = h;
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('#v-home [data-to]').forEach(c => c.style.strokeDashoffset = c.dataset.to)));
   bind(go, nw, ak, rp);
+}
+
+// «Было → стало»: что выросло за 4 недели (или с первой тренировки, если истории меньше). Нет роста — блока нет.
+function trendHtml(db, now) {
+  const exOf = id => P.exOf(db, id), d = monthDeltas(db.sessions, exOf, now);
+  if (!d.length) return '';
+  const old = now - new Date(db.sessions[0].date) >= 28 * 864e5;
+  return `<div class="sec"><b>Было → стало</b><span>${old ? 'за 4 недели' : 'с первой тренировки'}</span></div><div class="card prs trend">${d.map(x => `<div class="prl"><span class="ic">↑</span><span class="t"><b>${esc(exOf(x.id).n)}</b><small class="n">${esc(deltaTxt(x))}</small></span><span class="pc n">+${x.pct}%</span></div>`).join('')}</div>`;
 }
 
 // «≈ 25,9 слона»: дробное число — всегда «слона».
@@ -123,6 +134,7 @@ function bodyCard(db) {
 function bind(go, nw, ak, rp) {
   const gn = $('#gonow'); if (gn) gn.onclick = () => {updDB(d => ({...d, wo: nw})); go('train', true);};
   const gl = $('#golive'); if (gl) gl.onclick = () => {const [ph, wo] = WK.splitKey(ak); updDB(d => ({...d, phase: ph, wo})); go('train', true);};
+  const gr = $('#goroad'); if (gr) {gr.onclick = openRoadmap; gr.onkeydown = e => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault(); openRoadmap();}};}
   const gp = $('#gophase'); if (gp) gp.onclick = () => {updDB(d => ({...d, phase: rp, wo: P.woKeys(d, rp)[0]})); renderHome(go); toast('Этап ' + rp.slice(1) + ' — поехали!');};
   const gb = $('#gobody'); if (gb) gb.onclick = () => go('body');
   const gk = $('#gobackup'); if (gk) gk.onclick = () => go('body', false, 'backup');
