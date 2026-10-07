@@ -96,6 +96,7 @@ export function syncNow() {
 
 const photoKey = p => (p.ex + '_' + p.ts).toLowerCase().replace(/[^0-9a-z_-]/g, '-').slice(0, 64);
 async function syncPhotos(a, k) {
+  if (typeof indexedDB === 'undefined') return;
   const {data} = await api('GET', '/v1/photos', null, a), remote = new Set(data.keys || []);
   const local = await allPhotos(), have = new Set(local.map(photoKey));
   for (const p of local) {

@@ -4,7 +4,7 @@ import {isIOS, isStandalone} from '../platform.js';
 
 const SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8"/></svg>';
 const PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
-const HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="4"/><path d="M12 9v6M9 12h6"/></svg>';
+const HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><rect x="9.5" y="6" width="2" height="2" rx=".5" fill="currentColor"/><rect x="12.5" y="6" width="2" height="2" rx=".5" fill="currentColor"/><rect x="9.5" y="9.5" width="2" height="2" rx=".5" fill="currentColor"/><rect x="12.5" y="9.5" width="2" height="2" rx=".5" fill="currentColor"/><path d="M10.5 18.5h3"/></svg>';
 
 export const needsInstall = () => isIOS() && !isStandalone();
 

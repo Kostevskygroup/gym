@@ -1,6 +1,6 @@
 // Офлайн-режим: всё приложение лежит в кэше и открывается без сети.
 // Файл собирается командой `npm run build` — не правь sw.js руками.
-const VERSION = 'a142213cada2';
+const VERSION = '91695275041d';
 const CACHE = 'gym-' + VERSION;
 const ASSETS = [
  "./",
