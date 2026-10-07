@@ -12,19 +12,21 @@ const DAYS = {2: '2', 3: '3', 4: '4', 5: '5'}, LEVELS = {1: 'Новичок', 2:
 
 // mode: 'new' — новый профиль; 'rebuild' — новая программа текущему. after() — перерисовать.
 export function openWizard(mode, after) {
-  const st = (mode === 'rebuild' && state.db.settings) || {};
+  const st = (mode !== 'new' && state.db.settings) || {};
+  const askName = mode !== 'rebuild';
   const a = {name: '', goal: st.goal || 'general', days: String(st.days || 3), level: String(st.level || 1), pain: [...(st.pain || [])], focus: [...(st.focus || [])], src: 'auto'};
-  const others = profiles().filter(p => p.id !== activeProfile() || mode === 'new');
+  const others = profiles().filter(p => p.id !== activeProfile() || mode === 'new').filter(p => mode !== 'first');
   const SRC = {auto: 'Собрать под меня', std: 'Стандартная программа', ...Object.fromEntries(others.map(p => ['copy:' + p.id, 'Как у «' + p.name + '»']))};
-  const html = `${sheetHead(mode === 'new' ? 'Новый человек' : 'Программа под меня', '', 'Ответы можно поменять потом в профиле')}<div class="sc wiz">
-    ${mode === 'new' ? `<div class="form"><label>Имя<input id="wname" maxlength="24" placeholder="Например: Ксюша"></label></div>` : ''}
+  const title = mode === 'new' ? 'Новый человек' : mode === 'first' ? 'Расскажи о себе' : 'Программа под меня';
+  const html = `${sheetHead(title, mode === 'first' ? 'Шаг 1 из 3' : '', 'Ответы можно поменять потом в профиле')}<div class="sc wiz">
+    ${askName ? `<div class="form"><label>Как тебя зовут<input id="wname" maxlength="24" placeholder="Например: Ксюша" value="${esc(st.name || '')}"></label></div>` : ''}
     <div class="tb2"><h4>Цель</h4>${chipRow('wgoal', GOALS, a.goal, false)}</div>
     <div class="tb2"><h4>Сколько раз в неделю</h4>${chipRow('wdays', DAYS, a.days, false)}</div>
     <div class="tb2"><h4>Опыт</h4>${chipRow('wlevel', LEVELS, a.level, false)}</div>
     <div class="tb2"><h4>Что беспокоит</h4>${chipRow('wpain', JOINTS, a.pain, true)}<p class="hint2">Упражнения с сильной нагрузкой на эти суставы в программу не попадут, а после тренировки приложение спросит про самочувствие.</p></div>
     <div class="tb2"><h4>На что сделать упор</h4>${chipRow('wfocus', FOCUS, a.focus, true)}</div>
     <div class="tb2"><h4>Программа</h4>${chipRow('wsrc', SRC, a.src, false)}</div>
-    <button class="btn" style="margin-top:20px" id="wgo">${mode === 'new' ? 'Создать и открыть' : 'Собрать программу'}</button>
+    <button class="btn" style="margin-top:20px" id="wgo">${mode === 'new' ? 'Создать и открыть' : mode === 'first' ? 'Собрать мою программу' : 'Собрать программу'}</button>
     <p class="hint2">Программа на 3 этапа на тренажёрах твоего зала, в конце каждой тренировки — пресс кругом. Её можно править в «Программе».</p></div>`;
   openSheet(html, sh => {
     sh.querySelectorAll('.chipsel').forEach(box => box.onclick = e => {
@@ -41,12 +43,14 @@ export function openWizard(mode, after) {
       if (src === 'std') plan = null;
       else if (src.startsWith('copy:')) plan = copiedPlan(src.slice(5));
       else plan = buildProgram(ans, allEx(state.db));
+      const nm = askName ? String(sh.querySelector('#wname').value || '').trim().slice(0, 24) : null;
+      if (askName && !nm) {toast('Введи имя'); return;}
       try {
-        if (mode === 'new') addProfile(sh.querySelector('#wname').value, ans);
-        updDB(d => ({...d, plan: plan === undefined ? d.plan : plan, phase: 'p1', wo: Object.keys((plan || W).p1.w)[0], settings: {...d.settings, ...ans, knee: ans.pain.includes('knee')}}));
+        if (mode === 'new') addProfile(nm, ans);
+        updDB(d => ({...d, plan: plan === undefined ? d.plan : plan, phase: 'p1', wo: Object.keys((plan || W).p1.w)[0], settings: {...d.settings, ...ans, ...(nm ? {name: nm} : {}), knee: ans.pain.includes('knee')}}));
       } catch (e) {toast(e.message); return;}
       closeSheet();
-      toast(mode === 'new' ? 'Профиль создан — программа готова' : 'Программа собрана');
+      toast(mode === 'new' ? 'Профиль создан — программа готова' : mode === 'first' ? 'Программа готова' : 'Программа собрана');
       after(mode === 'new');
     };
   });

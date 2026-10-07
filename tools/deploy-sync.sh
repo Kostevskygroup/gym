@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REGION=eu-west-1
+export AWS_DEFAULT_REGION=$REGION
 FN=gym-sync
 ROLE=gym-sync-lambda
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -34,7 +35,7 @@ if ! aws iam get-role --role-name "$ROLE" >/dev/null 2>&1; then
   CREATED_ROLE=1
 fi
 aws iam attach-role-policy --role-name "$ROLE" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-aws iam put-role-policy --role-name "$ROLE" --policy-name gym-sync-s3 --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\"],\"Resource\":\"arn:aws:s3:::${BUCKET}/u/*\"},{\"Effect\":\"Allow\",\"Action\":\"s3:ListBucket\",\"Resource\":\"arn:aws:s3:::${BUCKET}\",\"Condition\":{\"StringLike\":{\"s3:prefix\":[\"u/*\"]}}}]}"
+aws iam put-role-policy --role-name "$ROLE" --policy-name gym-sync-s3 --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\"],\"Resource\":[\"arn:aws:s3:::${BUCKET}/u/*\",\"arn:aws:s3:::${BUCKET}/inv/*\"]},{\"Effect\":\"Allow\",\"Action\":\"s3:ListBucket\",\"Resource\":\"arn:aws:s3:::${BUCKET}\",\"Condition\":{\"StringLike\":{\"s3:prefix\":[\"u/*\",\"inv/*\"]}}}]}"
 ROLE_ARN=$(aws iam get-role --role-name "$ROLE" --query Role.Arn --output text)
 [ "${CREATED_ROLE:-0}" = 1 ] && { echo "   ждём, пока роль станет доступна…"; sleep 12; }
 

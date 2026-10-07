@@ -10,14 +10,15 @@ const ago = iso => {const m = Math.round((Date.now() - Date.parse(iso)) / 60000)
 let cmode = 'new';
 function cloudHtml(me) {
   const a = SY.account();
-  if (a) return `<div class="tb2"><h4>Облако</h4><div class="cloud${a.err ? ' bad' : ''}"><b>Вход: ${esc(a.name)}</b><small>${a.err ? esc(a.err) : a.at ? 'синхронизировано ' + ago(a.at) : 'синхронизация…'}</small></div>
+  if (a) return `<div class="tb2"><h4>Облако</h4><div class="cloud${a.err ? ' bad' : ''}"><b>Вход: ${esc(a.name)}${a.admin ? ' · владелец' : ''}</b><small>${a.err ? esc(a.err) : a.at ? 'синхронизировано ' + ago(a.at) : 'синхронизация…'}</small></div>
+    ${a.admin ? `<button class="btn" style="margin-top:12px" id="cinvite">Пригласить человека</button><p class="hint2">Создаст одноразовый код на 7 дней и откроет «Поделиться» — отправь сообщение в любой мессенджер. В нём ссылка, как установить и код.</p><div id="cinvlist"></div>` : ''}
     <div class="g2" style="margin-top:12px"><button class="btn s2 sm" id="csync">Синхронизировать</button><button class="btn s2 sm" id="cout">Выйти из облака</button></div>
     <p class="hint2">Данные шифруются на телефоне и хранятся на сервере в Ирландии. На другом телефоне войди с тем же именем и паролем.</p></div>`;
   return `<div class="tb2"><h4>Облако</h4><p class="hint2 lead">Чтобы ничего не потерялось и было на любом телефоне — включи облако. Данные шифруются на телефоне паролем: прочитать их можешь только ты.</p>
     <div class="seg" id="cmode"><button class="${cmode === 'new' ? 'on' : ''}" data-m="new">Новый аккаунт</button><button class="${cmode === 'in' ? 'on' : ''}" data-m="in">Уже есть</button></div>
     <div class="form"><label>Имя для входа<input id="cname" autocomplete="username" value="${esc(me.name === 'Я' ? '' : me.name)}" placeholder="Например: slava"></label>
     <label>Пароль<input id="cpass" type="password" autocomplete="${cmode === 'new' ? 'new-password' : 'current-password'}" placeholder="минимум 6 символов"></label>
-    ${cmode === 'new' ? '<label>Код приглашения<input id="cinv" autocapitalize="characters" placeholder="ZAL-XXXX-XXXX-XXXX"></label>' : ''}</div>
+    ${cmode === 'new' ? `<label>Код приглашения<input id="cinv" autocapitalize="characters" value="${esc(SY.pendingInvite())}" placeholder="ZAL-XXXX-XXXX"></label>` : ''}</div>
     <button class="btn" style="margin-top:12px" id="cgo">${cmode === 'new' ? 'Создать и включить' : 'Войти'}</button>
     <p class="hint2">Пароль не восстановить — запиши его. Без пароля данные не расшифровать никому.</p></div>`;
 }
@@ -26,6 +27,14 @@ const initial = n => esc((String(n || '?').trim()[0] || '?').toUpperCase());
 export const avatarHtml = () => {const p = profiles().find(x => x.id === activeProfile()); return `<button class="avatar" id="profbtn" aria-label="Профиль: ${esc(p.name)}">${initial(p.name)}</button>`;};
 
 // after(changed) вызывается после переключения или изменения профиля.
+async function drawInvites(sh) {
+  const box = sh.querySelector('#cinvlist'); if (!box) return;
+  try {
+    const list = await SY.listInvites();
+    box.innerHTML = list.length ? `<div class="glist" style="margin-top:12px">${list.map(i => `<div class="gl-row"><span class="t"><b class="n">${esc(i.code)}</b><small>${i.used ? 'использован' : i.expired ? 'истёк' : 'действует до ' + fmtD(i.exp)}</small></span><span></span></div>`).join('')}</div>` : '';
+  } catch (e) {box.innerHTML = '';}
+}
+
 export function openProfiles(after) {
   const draw = sh => {
     const list = profiles(), cur = activeProfile(), me = list.find(p => p.id === cur), knee = !state.db.settings || state.db.settings.knee !== false;
@@ -75,6 +84,20 @@ export function openProfiles(after) {
         toast('Облако включено'); draw(sh); after(false);
       } catch (e) {toast(e.message); go.disabled = false; go.textContent = cmode === 'new' ? 'Создать и включить' : 'Войти';}
     };
+    const ci = sh.querySelector('#cinvite');
+    if (ci) {
+      ci.onclick = async () => {
+        ci.disabled = true;
+        try {
+          const {code} = await SY.createInvite(), text = SY.inviteText(code);
+          if (navigator.share) {try {await navigator.share({title: 'Мой зал', text});} catch (e) {if (e.name !== 'AbortError') throw e;}}
+          else {await navigator.clipboard.writeText(text); toast('Приглашение скопировано — отправь его в мессенджере');}
+          drawInvites(sh);
+        } catch (e) {toast(e.message);}
+        ci.disabled = false;
+      };
+      drawInvites(sh);
+    }
     const cs = sh.querySelector('#csync');
     if (cs) cs.onclick = async () => {cs.disabled = true; try {await SY.syncNow(); toast('Синхронизировано');} catch (e) {toast(e.message);} draw(sh); after(false);};
     const co = sh.querySelector('#cout');

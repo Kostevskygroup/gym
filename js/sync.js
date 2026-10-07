@@ -28,18 +28,39 @@ const key = async a => {if (!keyCache || keyCache.raw !== a.keyRaw) keyCache = {
 
 export async function register(name, password, invite) {
   const acc = await deriveAccount(name, password);
-  await api('POST', '/v1/register', {userId: acc.userId, token: acc.token, invite});
-  LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, version: 0, at: null, err: null});
+  const {data} = await api('POST', '/v1/register', {userId: acc.userId, token: acc.token, invite: String(invite || '').trim()});
+  LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, admin: data.admin === true, version: 0, at: null, err: null});
+  clearPendingInvite();
   emit();
   return syncNow();
 }
 export async function login(name, password) {
   const acc = await deriveAccount(name, password);
-  await api('POST', '/v1/login', null, acc);
-  LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, version: 0, at: null, err: null});
+  const {data} = await api('POST', '/v1/login', null, acc);
+  LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, admin: data.admin === true, version: 0, at: null, err: null});
   emit();
   return syncNow();
 }
+// Код приглашения из ссылки (…/gym/?invite=ZAL-…) — запоминаем до регистрации.
+const PENDING = 'gym.pendingInvite';
+export const pendingInvite = () => {try {return localStorage.getItem(PENDING) || '';} catch (e) {return '';}};
+export const setPendingInvite = c => {try {localStorage.setItem(PENDING, String(c || '').trim().toUpperCase());} catch (e) {}};
+export const clearPendingInvite = () => {try {localStorage.removeItem(PENDING);} catch (e) {}};
+// Владелец создаёт одноразовый код на 7 дней прямо с телефона.
+export async function createInvite() {
+  const a = account();
+  if (!a || !a.admin) throw new Error('Приглашать может только владелец');
+  const {data} = await api('POST', '/v1/invites', {}, a);
+  return data;
+}
+export async function listInvites() {
+  const a = account();
+  if (!a || !a.admin) return [];
+  const {data} = await api('GET', '/v1/invites', null, a);
+  return data.invites || [];
+}
+export const appUrl = () => location.origin + location.pathname.replace(/[^/]*$/, '');
+export const inviteText = (code) => `Привет! Это «Мой зал» — наше приложение для тренировок.\n\n1. Открой ссылку в Safari: ${appUrl()}\n2. Нажми «Поделиться» → «На экран Домой».\n3. Открой с экрана «Домой», ответь на пару вопросов — программа соберётся сама.\n4. Включи облако: код приглашения ${code} (действует 7 дней, один раз).`;
 export function logout() {LS.del(KEY()); keyCache = null; emit();}
 
 // Подтянуть с сервера, слить, отправить своё. Повторяет при одновременной записи с другого телефона.

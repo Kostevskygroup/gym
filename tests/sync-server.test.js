@@ -87,3 +87,59 @@ test('garbage requests get clean errors', async () => {
   assert.equal((await call(s, 'GET', '/v1/nope', undefined, as)).code, 401);
   assert.equal((await call(s, 'GET', '/v1/ping')).code, 200);
 });
+
+// ---- приглашения из приложения ----
+const NOW = () => '2026-10-07T10:00:00.000Z';
+const callAt = async (s, nowIso, ...a) => {const r = await handle(req(...a), s, env, () => nowIso); return {code: r.statusCode, body: r.body ? JSON.parse(r.body) : null};};
+
+test('master invite makes an admin; app-made invites do not', async () => {
+  const s = memStore();
+  const r = await call(s, 'POST', '/v1/register', {userId: U, token: T, invite: 'зал-2026'});
+  assert.equal(r.code, 201);
+  assert.equal(r.body.admin, true);
+  assert.equal((await call(s, 'POST', '/v1/login', undefined, as)).body.admin, true);
+});
+
+test('admin creates a short single-use invite that expires in 7 days', async () => {
+  const s = memStore();
+  await call(s, 'POST', '/v1/register', {userId: U, token: T, invite: 'зал-2026'});
+  const inv = await callAt(s, NOW(), 'POST', '/v1/invites', {}, as);
+  assert.equal(inv.code, 201);
+  assert.match(inv.body.code, /^ZAL-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  assert.equal(inv.body.exp, '2026-10-14T10:00:00.000Z');
+  const U2 = 'd'.repeat(32), T3 = 'e'.repeat(64);
+  const reg = await callAt(s, '2026-10-08T10:00:00.000Z', 'POST', '/v1/register', {userId: U2, token: T3, invite: inv.body.code.toLowerCase()});
+  assert.equal(reg.code, 201);
+  assert.equal(reg.body.admin, false);
+  const again = await callAt(s, '2026-10-08T10:00:00.000Z', 'POST', '/v1/register', {userId: 'f'.repeat(32), token: T3, invite: inv.body.code});
+  assert.equal(again.code, 403);
+  assert.match(again.body.error, /использован/);
+});
+
+test('expired invite is refused', async () => {
+  const s = memStore();
+  await call(s, 'POST', '/v1/register', {userId: U, token: T, invite: 'зал-2026'});
+  const inv = await callAt(s, NOW(), 'POST', '/v1/invites', {}, as);
+  const late = await callAt(s, '2026-10-20T10:00:00.000Z', 'POST', '/v1/register', {userId: 'd'.repeat(32), token: 'e'.repeat(64), invite: inv.body.code});
+  assert.equal(late.code, 403);
+  assert.match(late.body.error, /истёк/);
+});
+
+test('non-admins cannot create invites; invite list shows status', async () => {
+  const s = memStore();
+  await call(s, 'POST', '/v1/register', {userId: U, token: T, invite: 'зал-2026'});
+  const inv = await callAt(s, NOW(), 'POST', '/v1/invites', {}, as);
+  const U2 = 'd'.repeat(32), T3 = 'e'.repeat(64);
+  await call(s, 'POST', '/v1/register', {userId: U2, token: T3, invite: inv.body.code});
+  assert.equal((await call(s, 'POST', '/v1/invites', {}, {'x-user': U2, 'x-token': T3})).code, 403);
+  const list = await callAt(s, '2026-10-09T10:00:00.000Z', 'GET', '/v1/invites', undefined, as);
+  assert.equal(list.code, 200);
+  assert.equal(list.body.invites.length, 1);
+  assert.equal(list.body.invites[0].used, true);
+  assert.equal(list.body.invites[0].code.slice(-4), inv.body.code.slice(-4));
+});
+
+test('wrong invite code is just refused', async () => {
+  const s = memStore();
+  assert.equal((await call(s, 'POST', '/v1/register', {userId: U, token: T, invite: 'ZAL-AAAA-BBBB'})).code, 403);
+});

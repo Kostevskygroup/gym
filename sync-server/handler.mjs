@@ -1,8 +1,11 @@
 // Сервер синхронизации «Мой зал»: хранит только зашифрованные данные. AWS Lambda (Function URL) + S3.
 // Хранилище передаётся снаружи: в Lambda — S3, в тестах — память.
-import {createHash, timingSafeEqual} from 'node:crypto';
+import {createHash, timingSafeEqual, randomInt} from 'node:crypto';
 
-const MAX_BODY = 4_500_000, MAX_PHOTOS = 600;
+const MAX_BODY = 4_500_000, MAX_PHOTOS = 600, INVITE_DAYS = 7, INVITE_MAX_OPEN = 20;
+const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const newCode = () => {let s = ''; for (let i = 0; i < 8; i++) s += ALPHA[randomInt(ALPHA.length)]; return `ZAL-${s.slice(0, 4)}-${s.slice(4)}`;};
+const invKey = code => `inv/${inviteHash(code)}.json`;
 const RE = {user: /^[0-9a-f]{32}$/, token: /^[0-9a-f]{64}$/, photo: /^[0-9a-z_-]{1,64}$/};
 const sha = s => createHash('sha256').update(String(s)).digest('hex');
 const json = (statusCode, body) => ({statusCode, headers: {'content-type': 'application/json', 'cache-control': 'no-store'}, body: JSON.stringify(body)});
@@ -20,12 +23,27 @@ function parse(event) {
 }
 const okBox = b => b && b.v === 1 && typeof b.iv === 'string' && typeof b.ct === 'string';
 
+// → {user, admin} или null
 async function auth(store, h) {
   const user = h['x-user'], token = h['x-token'];
   if (!RE.user.test(user || '') || !RE.token.test(token || '')) return null;
   const a = await store.get(`u/${user}/auth.json`);
   if (!a) return null;
-  return sameHex(JSON.parse(a.body).h, sha(token)) ? user : null;
+  const rec = JSON.parse(a.body);
+  return sameHex(rec.h, sha(token)) ? {user, admin: rec.admin === true} : null;
+}
+
+// Код приглашения: мастер-код из окружения даёт права владельца; коды из приложения — одноразовые.
+async function useInvite(store, env, code, nowIso) {
+  if (env.INVITE_SHA && sameHex(inviteHash(code), env.INVITE_SHA)) return {ok: true, admin: true};
+  const k = invKey(code), cur = await store.get(k);
+  if (!cur) return {ok: false, msg: 'Неверный код приглашения'};
+  const inv = JSON.parse(cur.body);
+  if (inv.usedAt) return {ok: false, msg: 'Этот код уже использован — попроси новый'};
+  if (Date.parse(inv.exp) < Date.parse(nowIso)) return {ok: false, msg: 'Срок кода истёк — попроси новый'};
+  try {await store.put(k, JSON.stringify({...inv, usedAt: nowIso}), {ifMatch: cur.etag});}
+  catch (e) {if (e.code === 412) return {ok: false, msg: 'Этот код уже использован — попроси новый'}; throw e;}
+  return {ok: true, admin: false};
 }
 
 // env: {INVITE_SHA}. store: {get(key) → {body, etag} | null, put(key, body, {ifMatch?, ifNoneMatch?}) → etag (throws {code:412} on mismatch), list(prefix) → [keys]}
@@ -38,16 +56,36 @@ export async function handle(event, store, env, now = () => new Date().toISOStri
 
     if (method === 'POST' && path === '/v1/register') {
       const b = parse(event);
-      if (!env.INVITE_SHA || !sameHex(inviteHash(b.invite), env.INVITE_SHA)) return err(403, 'Неверный код приглашения');
       if (!RE.user.test(b.userId || '') || !RE.token.test(b.token || '')) return err(400, 'Неверные данные');
-      try {await store.put(`u/${b.userId}/auth.json`, JSON.stringify({h: sha(b.token), at: now()}), {ifNoneMatch: '*'});}
+      if (await store.get(`u/${b.userId}/auth.json`)) return err(409, 'Такое имя уже занято — войди или выбери другое');
+      const inv = await useInvite(store, env, b.invite, now());
+      if (!inv.ok) return err(403, inv.msg);
+      try {await store.put(`u/${b.userId}/auth.json`, JSON.stringify({h: sha(b.token), at: now(), admin: inv.admin}), {ifNoneMatch: '*'});}
       catch (e) {if (e.code === 412) return err(409, 'Такое имя уже занято — войди или выбери другое'); throw e;}
-      return json(201, {ok: true});
+      return json(201, {ok: true, admin: inv.admin});
     }
 
-    const user = await auth(store, h);
-    if (!user) return err(401, 'Неверное имя или пароль');
-    if (method === 'POST' && path === '/v1/login') return json(200, {ok: true});
+    const who = await auth(store, h);
+    if (!who) return err(401, 'Неверное имя или пароль');
+    const user = who.user;
+    if (method === 'POST' && path === '/v1/login') return json(200, {ok: true, admin: who.admin});
+
+    if (path === '/v1/invites') {
+      if (!who.admin) return err(403, 'Приглашать может только владелец');
+      if (method === 'POST') {
+        const open = (await store.list('inv/')).length;
+        if (open > INVITE_MAX_OPEN * 10) return err(507, 'Слишком много кодов');
+        const code = newCode(), exp = new Date(Date.parse(now()) + INVITE_DAYS * 864e5).toISOString();
+        await store.put(invKey(code), JSON.stringify({by: user, at: now(), exp, tail: code.slice(-4)}), {ifNoneMatch: '*'});
+        return json(201, {code, exp});
+      }
+      if (method === 'GET') {
+        const keys = await store.list('inv/'), invites = [];
+        for (const k of keys) {const r = await store.get(k); if (!r) continue; const inv = JSON.parse(r.body); if (inv.by !== user) continue; invites.push({code: 'ZAL-····-' + (inv.tail || '····'), at: inv.at, exp: inv.exp, used: !!inv.usedAt, expired: !inv.usedAt && Date.parse(inv.exp) < Date.parse(now())});}
+        invites.sort((a, b) => b.at.localeCompare(a.at));
+        return json(200, {invites: invites.slice(0, INVITE_MAX_OPEN)});
+      }
+    }
 
     const dataKey = `u/${user}/data.json`;
     if (method === 'GET' && path === '/v1/data') {

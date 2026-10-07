@@ -37,9 +37,16 @@ try {
   await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
   const open = async () => {await send('Page.navigate', {url: URL}); await sleep(1500); await ev(`window.confirm = () => true; return 1;`);};
 
-  console.log('Запуск');
+  console.log('Первый запуск');
   await open();
-  ok(await ev(`return document.querySelector('#v-home').innerHTML.length > 500`), 'главный экран отрисован');
+  ok(await ev(`return !!document.querySelector('#welcome')`), 'на новом телефоне — экран приветствия');
+  const fr = await ev(`document.querySelector('#wstart').click(); ${W(500)} document.querySelector('#wname').value = 'Тест'; document.querySelector('#wpain [data-k=knee]').click(); document.querySelector('#wgo').click(); ${W(900)}
+    const cloud = document.querySelector('#sheet h2')?.textContent; document.querySelector('#cskip').click(); ${W(600)}
+    const db = JSON.parse(localStorage.getItem('gym.db'));
+    return {cloud, name: db.settings.name, onboarded: db.settings.onboarded, pain: db.settings.pain, plan: !!db.plan, home: !!document.querySelector('#v-home .hero')};`);
+  ok(fr.cloud === 'Облако' && fr.name === 'Тест' && fr.onboarded && fr.plan && fr.home, `анкета → облако (пропущено) → главный экран${fr.home ? '' : ' (нет главного)'}`);
+  await open();
+  ok(await ev(`return !document.querySelector('#welcome') && document.querySelector('#v-home').innerHTML.length > 500`), 'после перезапуска приветствие не повторяется');
   ok(await ev(`return !document.querySelector('#crash').classList.contains('on')`), 'нет экрана сбоя');
 
   console.log('Тренировка');

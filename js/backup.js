@@ -114,6 +114,7 @@ export function normalizeDB(raw) {
       goal: GOAL_KEYS.includes(st.goal) ? st.goal : '',
       days: Number.isInteger(+st.days) && st.days >= 1 && st.days <= 6 ? +st.days : null,
       level: st.level === 1 || st.level === 2 ? st.level : null,
+      onboarded: st.onboarded === true,
     };
   }
   if (obj(d.dismissed)) Object.entries(d.dismissed).forEach(([k, v]) => {if (okDate(v)) db.dismissed[k] = v;});

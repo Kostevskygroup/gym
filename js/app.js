@@ -13,7 +13,7 @@ import {onFinishNav} from './views/finish.js';
 import {onPlanClose} from './views/plan.js';
 import {refreshCovers} from './views/covers.js';
 import {ymd} from './format.js';
-import {startAutoSync, syncNow} from './sync.js';
+import {startAutoSync, syncNow, setPendingInvite} from './sync.js';
 import {stats, checkAch} from './stats.js';
 
 // Достижения по уже существующей истории (после переноса или восстановления) — без поздравлений.
@@ -85,6 +85,11 @@ function bindGlobal() {
 
 function start() {
   if (!storageWorks()) $('#warn').classList.add('on');
+  // …/gym/?invite=ZAL-XXXX-XXXX — запоминаем код и убираем его из адреса
+  try {
+    const u = new URL(location.href), inv = u.searchParams.get('invite');
+    if (inv) {setPendingInvite(inv); u.searchParams.delete('invite'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);}
+  } catch (e) {}
   bindGlobal();
   registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));
   try {load();} catch (e) {crash(e); return;}

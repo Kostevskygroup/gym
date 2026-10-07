@@ -12,6 +12,8 @@ import {hasPhoto} from '../data/equipment.js';
 import {saveStale} from './finish.js';
 import {coachHtml, bindCoach} from './coach.js';
 import {avatarHtml, openProfiles} from './profiles.js';
+import {welcomeHtml, bindWelcome, isFresh} from './welcome.js';
+import {openInstall, needsInstall} from './install.js';
 
 const greet = () => {const h = new Date().getHours(); return h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';};
 function ringSvg(p) {const c = 2 * Math.PI * 42; return `<svg viewBox="0 0 104 104"><circle class="trk" cx="52" cy="52" r="42" fill="none" stroke-width="10"/><circle class="arc" cx="52" cy="52" r="42" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" data-to="${c * (1 - Math.min(1, p))}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg>`;}
@@ -28,10 +30,12 @@ function warnings() {
   if (state.saveFailed) h += `<div class="warn on">Не удаётся сохранить данные на телефоне. Сделай резервную копию во вкладке «Тело».</div>`;
   return h;
 }
-const installBanner = () => isIOS() && !isStandalone() ? `<div class="switch"><b>Открой с экрана «Домой»</b>Нажми «Поделиться» → «На экран Домой» и заходи через иконку. Данные во вкладке Safari хранятся отдельно от приложения на экране «Домой».</div>` : '';
+const installBanner = () => needsInstall() ? `<div class="switch"><b>Поставь на экран «Домой»</b>Так приложение открывается как обычное и работает без интернета.<button class="btn" id="goinstall">Как это сделать</button></div>` : '';
 
 export function renderHome(go) {
-  const db = state.db, st = stats(db), S = db.sessions, now = new Date();
+  const db = state.db;
+  if (isFresh() && !(db.settings && db.settings.onboarded)) {$('#v-home').innerHTML = warnings() + welcomeHtml(); bindWelcome(go); return;}
+  const st = stats(db), S = db.sessions, now = new Date();
   const wk = L.planWeek(S, now), rp = L.recPhase(wk), [a, b] = L.RANGE[db.phase], ph = P.phaseOf(db, db.phase), T = L.target(db.phase);
   const pct = S.length ? (b ? Math.min(1, Math.max(0, (wk - a + 1) / (b - a + 1))) : 1) : 0;
   const thisW = S.filter(s => L.weekKey(s.date) === L.weekKey(now)).length;
@@ -107,6 +111,7 @@ function bind(go, nw, ak, rp) {
   const ss = $('#h-stsave'); if (ss) ss.onclick = () => saveStale(ak, () => renderHome(go));
   const sd = $('#h-stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(ak); renderHome(go);}};
   bindCoach(() => renderHome(go), go);
+  const gi = $('#goinstall'); if (gi) gi.onclick = openInstall;
   $('#profbtn').onclick = () => openProfiles(changed => changed ? dispatchEvent(new Event('gym:profile')) : renderHome(go));
 }
 
