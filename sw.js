@@ -1,6 +1,6 @@
 // Офлайн-режим: всё приложение лежит в кэше и открывается без сети.
 // Файл собирается командой `npm run build` — не правь sw.js руками.
-const VERSION = 'a8ccf57ce3b8';
+const VERSION = 'db7ff7d44364';
 const CACHE = 'gym-' + VERSION;
 const ASSETS = [
  "./",
@@ -39,13 +39,21 @@ const ASSETS = [
  "js/data/meta.js",
  "js/data/moves.js",
  "js/data/moves/bench.js",
+ "js/data/moves/bench2.js",
+ "js/data/moves/bikes.js",
  "js/data/moves/cable1.js",
  "js/data/moves/cable2.js",
+ "js/data/moves/cable3.js",
+ "js/data/moves/cable4.js",
  "js/data/moves/floor.js",
+ "js/data/moves/floor2.js",
  "js/data/moves/free.js",
+ "js/data/moves/free2.js",
  "js/data/moves/kit.js",
  "js/data/moves/machines.js",
+ "js/data/moves/machines2.js",
  "js/data/moves/smith.js",
+ "js/data/moves/smith2.js",
  "js/data/program.js",
  "js/format.js",
  "js/logic.js",

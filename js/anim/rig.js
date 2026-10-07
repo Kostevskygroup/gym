@@ -15,8 +15,6 @@ const rad = d => d * Math.PI / 180;
 export const dir = a => [Math.sin(rad(a)), -Math.cos(rad(a))];
 const add = (p, a, len) => {const [dx, dy] = dir(a); return [p[0] + dx * len, p[1] + dy * len];};
 
-// Плавный старт и остановка — так движется человек, а не механизм.
-export const ease = p => p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
 const mix = (x, y, k) => x + (y - x) * k;
 const mixArr = (x, y, k) => x ? x.map((v, i) => mix(v, (y || x)[i] ?? v, k)) : y;
 
@@ -76,18 +74,4 @@ export function solve(pose, front = false) {
   const z = raw([0, 0], false), r = z[root];
   if (!r) throw new Error('unknown root ' + root);
   return raw([at[0] - r[0], at[1] - r[1]], true);
-}
-
-// Темп повтора: подъём → пауза → опускание → пауза. Возвращает долю движения 0…1 для момента ms.
-export const TEMPO = {
-  rep: [1100, 350, 1500, 450],
-  hold: [2200, 300, 2200, 300],
-  fast: [450, 60, 450, 60],
-};
-export function phaseAt(ms, tempo = 'rep') {
-  const [up, h1, down, h2] = TEMPO[tempo] || TEMPO.rep, T = up + h1 + down + h2, t = ((ms % T) + T) % T;
-  if (t < up) return {k: ease(t / up), stage: 'up'};
-  if (t < up + h1) return {k: 1, stage: 'top'};
-  if (t < up + h1 + down) return {k: ease(1 - (t - up - h1) / down), stage: 'down'};
-  return {k: 0, stage: 'bottom'};
 }

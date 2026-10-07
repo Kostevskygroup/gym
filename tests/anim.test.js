@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {solve, lerpPose, ik2, phaseAt, SEG} from '../js/anim/rig.js';
+import {solve, lerpPose, ik2, SEG} from '../js/anim/rig.js';
 import {frameSvg, viewBox, FLOOR} from '../js/anim/draw.js';
 import {MOVES, moveFor} from '../js/data/moves.js';
 import {EX} from '../js/data/exercises.js';
@@ -26,12 +26,9 @@ test('ik targets hold hands and feet in place while the body moves', () => {
   for (const k of [0, 0.5, 1]) assert.ok(near(solve(lerpPose(A, B, k)).hn, [214, 210], 1));
 });
 
-test('tempo: start and finish are held, motion eases in between', () => {
-  assert.equal(phaseAt(0).k, 0);
-  assert.equal(phaseAt(1200).k, 1);
-  assert.equal(phaseAt(1200).stage, 'top');
-  const mid = phaseAt(550).k;
-  assert.ok(mid > 0.3 && mid < 0.7);
+test('every exercise in the catalog has a technique illustration', () => {
+  const missing = Object.keys(EX).filter(id => !MOVES[id]);
+  assert.deepEqual(missing, []);
 });
 
 // Каждое описанное движение: известные детали снаряда, конечные координаты, ничего не уходит под пол.

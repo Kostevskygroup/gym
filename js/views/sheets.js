@@ -10,7 +10,7 @@ import {GUIDE, PHOTO_W, PHOTO_H, guideFor} from '../data/guides.js';
 import {listPhotos, addPhoto, delPhoto} from '../photos.js';
 import {pickFile} from '../platform.js';
 import {refreshCovers} from './covers.js';
-import {moveHtml, mountMove} from '../anim/player.js';
+import {moveHtml} from '../anim/player.js';
 
 const PIN_R = 24;
 const LABELS = {start: 'Старт', end: 'Финиш', plate: 'Табличка', '': 'Фото'};
@@ -30,10 +30,10 @@ const ytUrl = e => 'https://www.youtube.com/results?search_query=' + encodeURICo
 
 export function openTech(id) {
   const e = P.exOf(state.db, id), note = P.noteOf(state.db, id), eq = EQUIP[e.img];
-  let urls = [], stopMove = () => {};
+  let urls = [];
   const mv = moveHtml(id, e);
   const html = `${sheetHead(esc(e.n), 'Техника', eq ? esc(eq.n) : '')}<div class="sc">
-  ${mv ? `<div class="tb2"><h4>Как двигаться</h4>${mv}</div>` : ''}
+  ${mv ? `<div class="tb2"><h4>Как делать — картинками</h4>${mv}</div>` : ''}
   ${guideSvg(id, e) ? `<div class="tb2"><h4>Настройка на твоём тренажёре</h4>${guideSvg(id, e)}</div>` : ''}
   ${!hasPhoto(e.img) && e.img !== 'mat' ? `<div class="note" style="margin:16px 0 0">Фото «${esc(eq ? eq.n : 'снаряда')}» из твоего зала пока нет. Сфоткай его кнопкой «Табличка» ниже — фото станет обложкой упражнения.</div>` : ''}
   ${e.setup ? `<div class="tb2"><p>${esc(e.setup)}</p></div>` : ''}
@@ -61,8 +61,7 @@ export function openTech(id) {
       try {await addPhoto(id, f, b.dataset.add); await refreshCovers(); drawPhotos(); toast('Фото сохранено');} catch (err) {console.error(err); toast(err.message || 'Не получилось сохранить фото');}
     });
     drawPhotos();
-    stopMove = mountMove(sh.querySelector('.mv'), id, e);
-  }, () => {stopMove(); urls.forEach(u => URL.revokeObjectURL(u));});
+  }, () => urls.forEach(u => URL.revokeObjectURL(u)));
 }
 
 function viewPhoto(p, src, after) {
