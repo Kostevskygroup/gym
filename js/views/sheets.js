@@ -6,7 +6,7 @@ import * as L from '../logic.js';
 import * as WK from '../workout.js';
 import {esc, fmtD, fmtN} from '../format.js';
 import {EQUIP, hasPhoto} from '../data/equipment.js';
-import {GUIDE, PHOTO_W, PHOTO_H} from '../data/guides.js';
+import {GUIDE, PHOTO_W, PHOTO_H, guideFor} from '../data/guides.js';
 import {listPhotos, addPhoto, delPhoto} from '../photos.js';
 import {pickFile} from '../platform.js';
 import {refreshCovers} from './covers.js';
@@ -15,7 +15,7 @@ const PIN_R = 24;
 const LABELS = {start: 'Старт', end: 'Финиш', plate: 'Табличка', '': 'Фото'};
 
 function guideSvg(id, e) {
-  const g = GUIDE[id];
+  const g = guideFor(id, e.img);
   if (!g || !hasPhoto(e.img)) return '';
   const arrows = (g.arrows || []).map(([x1, y1, x2, y2]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0D1A16" stroke-width="16" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#F5C842" stroke-width="9" stroke-linecap="round" marker-end="url(#ah)"/>`).join('');
   const pins = g.pins.map(([x, y], i) => `<g class="pin" data-pin="${i}"><circle cx="${x}" cy="${y}" r="${PIN_R + 6}" fill="rgba(13,26,22,.55)"/><circle cx="${x}" cy="${y}" r="${PIN_R}" fill="#F5C842" stroke="#0D1A16" stroke-width="4"/><text x="${x}" y="${y + 9}" text-anchor="middle" font-size="26" font-weight="900" fill="#17150A">${i + 1}</text></g>`).join('');

@@ -32,7 +32,7 @@ export function nextWo(sessions, phase, keys) {
 
 export function lastFor(sessions, id) {
   const s = [...sessions].sort(byDate).reverse().find(x => x.entries[id] && x.entries[id].length);
-  return s ? {e: s.entries[id], date: s.date, phase: s.phase, wo: s.wo, knee: s.knee} : null;
+  return s ? {e: s.entries[id], date: s.date, phase: s.phase, wo: s.wo, knee: s.knee, pain: painOf(s)} : null;
 }
 
 // Сила подхода: для весовых — расчётный максимум (Эпли), для остальных — значение.
@@ -93,7 +93,21 @@ function mode(arr) {
 const kg = (w, r) => `${w} кг × ${r}`;
 
 // Цель на сегодня по прошлой тренировке (двойная прогрессия).
-// opts: {sessions, id, t, sets, reps, step, phase, now, knee}
+// Боль: худшее значение среди отслеживаемых суставов, которые нагружает упражнение.
+// opts.load — нагрузка упражнения {сустав: 1|2}; opts.pains — последняя боль по суставам {сустав: 0..10}.
+// Старый вариант (только колени): opts.knee + opts.kneeLast.
+function worstPain(o, L) {
+  const load = o.load || (o.knee ? {knee: 1} : {}), pains = o.pains || (o.kneeLast !== undefined || o.knee ? {knee: o.kneeLast ?? null} : {});
+  let worst = null, joint = null;
+  Object.keys(pains).forEach(j => {
+    if (!(load[j] >= 1)) return;
+    const v = Math.max(L.pain[j] ?? -1, pains[j] ?? -1);
+    if (v >= 0 && (worst === null || v > worst)) {worst = v; joint = j;}
+  });
+  return {pain: worst, joint};
+}
+export const JOINT_SHORT = {knee: 'колени', back: 'спина', shoulder: 'плечи', elbow: 'локти', wrist: 'запястья', neck: 'шея', hip: 'таз', ankle: 'голеностоп'};
+// opts: {sessions, id, t, sets, reps, step, phase, now, load, pains}
 export function aim(o) {
   const L = lastFor(o.sessions, o.id);
   if (!L) return null;
@@ -101,14 +115,13 @@ export function aim(o) {
   if (o.t !== 'w') return aimPlain(o, L);
   const tr = topRep(o.reps) || 12, lr = lowRep(o.reps) || tr, step = o.step || 2.5;
   // колени: худшее из «в прошлый раз на этом упражнении» и «последний день ног»
-  const kn = o.knee ? Math.max(L.knee ?? -1, o.kneeLast ?? -1) : -1;
-  const knee = kn >= 0 ? kn : null;
+  const wp = worstPain(o, L), knee = wp.pain, jl = JOINT_SHORT[wp.joint] || 'колени';
   const pause = days > 14 ? (days > 28 ? 0.8 : 0.9) : 1;
   if (L.phase && o.phase && L.phase !== o.phase) {
     const e1 = e1rm('w', L.e), rir = RIR[o.phase] ?? 2;
     let w = floorTo(e1 / (1 + (lr + rir) / 30), step), why = 'новый этап — вес по расчёту', down = false;
     if (pause < 1) {w = floorTo(w * pause, step); why = 'новый этап, после перерыва — легче';}
-    if (knee >= 6) {w = floorTo(w - step, step); why = `колени ${knee}/10 — легче`; down = true;}
+    if (knee >= 6) {w = floorTo(w - step, step); why = `${jl} ${knee}/10 — легче`; down = true;}
     const r = Math.max(lr, Math.min(tr, Math.round(30 * (e1 / w - 1)) - rir));
     return {w, r: pause < 1 || down ? lr : r, up: false, down, txt: kg(w, pause < 1 || down ? lr : r), why};
   }
@@ -117,9 +130,9 @@ export function aim(o) {
     const nw = floorTo(w * pause, step);
     return {w: nw, r: lr, up: false, txt: kg(nw, lr), why: 'после перерыва — начни легче'};
   }
-  if (knee >= 6) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: `колени ${knee}/10 — легче`};}
+  if (knee >= 6) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: `${jl} ${knee}/10 — легче`};}
   const up = atW.length >= o.sets && atW.every(x => +x.b >= tr);
-  if (up && knee >= 4) return {w, r: tr, up: false, txt: kg(w, tr), why: `колени ${knee}/10 — вес не повышаем`};
+  if (up && knee >= 4) return {w, r: tr, up: false, txt: kg(w, tr), why: `${jl} ${knee}/10 — вес не повышаем`};
   if (up) {const nw = r1(w + step); return {w: nw, r: lr, up: true, txt: kg(nw, lr)};}
   if (mr < lr - 1) {const nw = floorTo(w - step, step); return {w: nw, r: lr, up: false, down: true, txt: kg(nw, lr), why: 'не добрал повторы — чуть легче'};}
   const r = Math.max(lr, Math.min(mr + 1, tr));
@@ -189,13 +202,21 @@ export function sanity(t, x, lastW) {
 }
 
 // Колени в последний день ног (где указано), или null.
-export function kneeLast(sessions, exOf) {
-  const l = [...sessions].sort(byDate).filter(s => s.knee != null && Object.keys(s.entries).some(id => exOf(id).knee)).at(-1);
-  return l ? l.knee : null;
+// Нагрузка упражнения на суставы (старые данные — только колени).
+export const exLoad = e => e.load || (e.risky ? {knee: 2} : e.knee ? {knee: 1} : {});
+// Боль в тренировке по суставам (старые записи — только колени).
+export const painOf = s => s.pain || (s.knee != null ? {knee: s.knee} : {});
+const loads = (s, exOf, j) => Object.keys(s.entries).some(id => (exLoad(exOf(id))[j] || 0) >= 1);
+// Последняя отмеченная боль в суставе среди тренировок, где он был нагружен.
+export function painLast(sessions, exOf, j) {
+  const l = [...sessions].sort(byDate).filter(s => painOf(s)[j] != null && loads(s, exOf, j)).at(-1);
+  return l ? painOf(l)[j] : null;
 }
+export function painAvg(sessions, exOf, j, n = 3) {
+  const xs = [...sessions].sort(byDate).filter(s => painOf(s)[j] != null && loads(s, exOf, j)).slice(-n);
+  return xs.length ? r1(xs.reduce((a, s) => a + painOf(s)[j], 0) / xs.length) : null;
+}
+export const kneeLast = (sessions, exOf) => painLast(sessions, exOf, 'knee');
 
 // Средняя боль в коленях за последние n тренировок ног (где указана).
-export function kneeAvg(sessions, exOf, n = 3) {
-  const legs = [...sessions].sort(byDate).filter(s => s.knee != null && Object.keys(s.entries).some(id => exOf(id).knee)).slice(-n);
-  return legs.length ? r1(legs.reduce((a, s) => a + s.knee, 0) / legs.length) : null;
-}
+export const kneeAvg = (sessions, exOf, n = 3) => painAvg(sessions, exOf, 'knee', n);

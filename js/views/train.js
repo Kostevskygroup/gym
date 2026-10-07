@@ -14,7 +14,7 @@ import {ownCover} from './covers.js';
 
 const UNIT_S = {w: 'повт', r: 'повт', t: 'сек', c: 'мин'};
 const RIR_TXT = {p1: '3 повтора в запасе', p2: '1–2 повтора в запасе', p3: '1 повтор в запасе'};
-const KNEE_HINT = {none: 'Отметь, даже если 0.', set: '0 — ничего не чувствую. Выше 3 — вес на ноги не повышаем.'};
+const KNEE_HINT = {none: 'Отметь, даже если 0.', set: '0 — ничего не чувствую. Выше 3 — вес на этот сустав не повышаем.'};
 let open = {}, lastTap = 0;
 const DOUBLE_TAP_MS = 600, DONE_TOAST_MS = 1500;
 const isCore = it => it.blk === 'core';
@@ -32,7 +32,7 @@ export function renderTrain() {
   <div class="session" id="session"></div>
   <div id="list">${listHtml(items)}</div>
   ${items.length ? '' : '<p class="empty">В этой тренировке нет упражнений — добавь их в «Программе».</p>'}
-  ${WK.kneeTracked() ? `<div class="card kneec" id="kneec">${kneeHtml(c.knee)}</div>` : ''}
+  ${WK.painsToday(k).length ? `<div class="card kneec" id="kneec">${WK.painsToday(k).map(j => painHtml(j, c.pain[j])).join('')}</div>` : ''}
   <button class="btn" id="finish" style="margin-top:24px">Завершить тренировку</button>
   <button class="textbtn" id="reset">Сбросить отметки</button>`;
   $('#v-train').innerHTML = h;
@@ -55,11 +55,12 @@ function listHtml(items) {
   }).join('');
 }
 
-const kneeHtml = v => {
+const JT = {knee: 'Колени', back: 'Спина', shoulder: 'Плечи', elbow: 'Локти', wrist: 'Запястья', neck: 'Шея', hip: 'Тазобедренные', ankle: 'Голеностоп'};
+const painHtml = (j, v) => {
   const none = v === null || v === undefined;
-  return `<div class="h"><span>Колени сегодня</span><b class="n${none ? ' none' : ''}" id="kneev">${none ? 'не отмечено' : v}</b></div>
+  return `<div class="pj" data-j="${j}"><div class="h"><span>${JT[j]} сегодня</span><b class="n${none ? ' none' : ''}"${j === 'knee' ? ' id="kneev"' : ''}>${none ? 'не отмечено' : v}</b></div>
   <small>${none ? KNEE_HINT.none : KNEE_HINT.set}</small>
-  <div class="knees" id="knee" role="group" aria-label="Боль в коленях">${Array.from({length: 11}, (_, i) => `<button class="${v === i ? 'on' : ''}" data-v="${i}">${i}</button>`).join('')}</div>`;
+  <div class="knees"${j === 'knee' ? ' id="knee"' : ''} role="group" aria-label="Боль: ${JT[j]}">${Array.from({length: 11}, (_, i) => `<button class="${v === i ? 'on' : ''}" data-v="${i}">${i}</button>`).join('')}</div></div>`;
 };
 
 function bindTrain(k, live) {
@@ -68,11 +69,11 @@ function bindTrain(k, live) {
   $$('#wos [data-w]').forEach(b => b.onclick = () => {if (b.dataset.w === state.db.wo || !guard()) return; updDB(d => ({...d, wo: b.dataset.w})); renderTrain();});
   $('#goplan').onclick = () => import('./plan.js').then(m => m.openPlan(state.db.phase, state.db.wo));
   if ($('#kneec')) $('#kneec').onclick = e => {
-    const b = e.target.closest('[data-v]');
-    if (!b) return;
-    WK.setKnee(k, +b.dataset.v);
+    const b = e.target.closest('[data-v]'), row = b && b.closest('.pj');
+    if (!b || !row) return;
+    WK.setPain(k, row.dataset.j, +b.dataset.v);
     haptic(5);
-    $('#kneec').innerHTML = kneeHtml(+b.dataset.v);
+    row.outerHTML = painHtml(row.dataset.j, +b.dataset.v);
   };
   $('#finish').onclick = () => finish(k);
   $('#reset').onclick = () => {if (confirm('Сбросить все отметки этой тренировки?')) {dropDraft(k); stopRest(); keepAwake(false); renderTrain(); updDot();}};

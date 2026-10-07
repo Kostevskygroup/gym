@@ -45,13 +45,22 @@ test('photo guides reference known exercises and stay inside the photo', () => {
   }
 });
 
-test('every exercise with a gym photo has a photo guide', () => {
-  for (const [id, e] of Object.entries(EX)) if (hasPhoto(e.img)) assert.ok(GUIDE[id], id);
+test('every exercise with a gym photo has a photo guide (own or the machine default)', async () => {
+  const {guideFor, GUIDE_EQ} = await import('../js/data/guides.js');
+  for (const [id, e] of Object.entries(EX)) if (hasPhoto(e.img)) assert.ok(guideFor(id, e.img), id);
+  for (const [eq, g] of Object.entries(GUIDE_EQ)) for (const [x, y] of g.pins) assert.ok(x >= 0 && x <= PHOTO_W && y >= 0 && y <= PHOTO_H, eq);
 });
 
-test('no power rack: barbell work is limited to moves you can start from the floor', () => {
-  const ok = new Set(['backh', 'hams', 'glutes', 'biceps']);
-  for (const [id, e] of Object.entries(EX)) if (e.img === 'barbell') assert.ok(ok.has(e.g), `${id}: нужна рама — делай в Смите`);
+test('library is big and covers every muscle group', () => {
+  assert.ok(Object.keys(EX).length >= 140, String(Object.keys(EX).length));
+  for (const g of Object.keys(GROUPS)) assert.ok(Object.values(EX).some(e => e.g === g), g);
+});
+
+test('no power rack: no barbell bench press, overhead press or squat (those go in the Smith)', () => {
+  for (const [id, e] of Object.entries(EX)) if (e.img === 'barbell' || e.img === 'ezbar') {
+    assert.ok(!['chest', 'press'].includes(e.g), `${id}: жим со стоек — делай в Смите`);
+    assert.ok(!/присед/i.test(e.n), `${id}: присед нужна рама — делай в Смите`);
+  }
 });
 
 test('every workout ends with a 3-part core circuit: stability → flexion → anti-rotation/side', async () => {

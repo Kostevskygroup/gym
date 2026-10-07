@@ -59,12 +59,15 @@ export function renderHome(go) {
   <div class="nextc">${heroEx && hasPhoto(P.exOf(db, heroEx.id).img) ? `<img src="img/${P.exOf(db, heroEx.id).img}.jpg" alt="">` : ''}<div class="k"><span>${items.length} ${plural(items.length, 'упражнение', 'упражнения', 'упражнений')}</span><span>≈ ${est} мин</span></div><h3>Тренировка ${esc(nw)}</h3><div class="chips">${chips(db, items)}</div><button class="btn" id="gonow">${ak && ak === WK.keyOf(db.phase, nw) ? 'Продолжить' : 'Начать тренировку'}</button></div>`;
   h += coachHtml();
   if (due.due) h += `<button class="backup" id="gobackup"><span class="bi">${ICON.save}</span><span class="t"><b>Сохрани резервную копию</b><small>${due.n} ${plural(due.n, 'тренировка', 'тренировки', 'тренировок')} без копии</small></span>${ICON.chev}</button>`;
-  const kn = st.knee;
+  const JT = {knee: 'Колени', back: 'Спина', shoulder: 'Плечи', elbow: 'Локти', wrist: 'Запястья', neck: 'Шея', hip: 'Тазобедренные', ankle: 'Голеностоп'};
+  const pj = Object.entries(st.pains).sort((a, b) => (b[1] ?? -1) - (a[1] ?? -1))[0], kn = pj ? pj[1] : null;
+  const painTile = pj ? `<div class="st"><small>${JT[pj[0]]} · среднее</small><b class="n${kn === null || kn === undefined ? '' : kn <= 3 ? ' good' : ' warn'}">${kn === null || kn === undefined ? '—' : fmtN(kn, 1)}<span>/10</span></b><i>за 3 тренировки</i></div>`
+    : `<div class="st"><small>Серия</small><b class="n">${st.streak}<span>${plural(st.streak, 'неделя', 'недели', 'недель')}</span></b><i>подряд по плану</i></div>`;
   h += `<div class="sec"><b>Результаты</b></div><div class="g2">
     <div class="st"><small>Поднято всего</small><b class="n">${fmtVol(st.total)}</b><i>${st.total >= 5000 ? elephants(st.total) : 'за ' + S.length + ' ' + plural(S.length, 'тренировку', 'тренировки', 'тренировок')}</i></div>
     <div class="st"><small>Рекорды</small><b class="n">${st.allPRs.length}</b><i>${st.allPRs.length ? 'последний ' + fmtD(st.allPRs.at(-1).date) : 'первый впереди'}</i></div>
     <div class="st"><small>За 30 дней</small><b class="n">${st.last30}<span>${plural(st.last30, 'тренировка', 'тренировки', 'тренировок')}</span></b><i>всего ${S.length}</i></div>
-    <div class="st"><small>Колени · среднее</small><b class="n${kn === null || kn === undefined ? '' : kn <= 3 ? ' good' : ' warn'}">${kn === null || kn === undefined ? '—' : fmtN(kn, 1)}<span>/10</span></b><i>за 3 тренировки ног</i></div></div>`;
+    ${painTile}</div>`;
   h += bodyCard(db);
   const prs = st.allPRs.slice(-4).reverse();
   if (prs.length) h += `<div class="sec"><b>Последние рекорды</b></div><div class="card prs">${prs.map(p => `<div class="prl"><span class="ic">PR</span><span class="t"><b>${esc(st.exOf(p.id).n)}</b><small class="n">${esc(ruDec(p.txt))}</small></span><span class="dt">${fmtD(p.date)}</span></div>`).join('')}</div>`;

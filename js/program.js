@@ -78,3 +78,27 @@ export function pickerGroups(db) {
     .map(eq => ({eq, items: Object.keys(all).filter(id => all[id].img === eq && !all[id].retired)}))
     .filter(x => x.items.length);
 }
+
+// ---- дни тренировок: меняются сразу во всех этапах ----
+const cleanDay = n => {const s = String(n || '').trim().slice(0, 20); if (!s) throw new Error('Введи название дня'); return s;};
+function eachPhase(db, fn) {
+  const plan = structuredClone(planOf(db));
+  PHASES.forEach(ph => {if (plan[ph]) plan[ph] = {...plan[ph], w: fn(plan[ph].w)};});
+  return {...db, plan};
+}
+export function addDay(db, name) {
+  const n = cleanDay(name);
+  if (PHASES.some(ph => planOf(db)[ph] && planOf(db)[ph].w[n])) throw new Error('Такой день уже есть');
+  return eachPhase(db, w => ({...w, [n]: []}));
+}
+export function renameDay(db, from, to) {
+  const n = cleanDay(to);
+  if (n === from) return db;
+  if (PHASES.some(ph => planOf(db)[ph] && planOf(db)[ph].w[n])) throw new Error('Такой день уже есть');
+  return {...eachPhase(db, w => Object.fromEntries(Object.entries(w).map(([k, v]) => [k === from ? n : k, v]))), wo: db.wo === from ? n : db.wo};
+}
+export function removeDay(db, name) {
+  if (PHASES.some(ph => Object.keys(planOf(db)[ph]?.w || {}).length <= 1)) throw new Error('Это последний день — его нельзя удалить');
+  const out = eachPhase(db, w => {const {[name]: _, ...rest} = w; return rest;});
+  return {...out, wo: db.wo === name ? woKeys(out, db.phase)[0] : db.wo};
+}

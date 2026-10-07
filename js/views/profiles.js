@@ -3,6 +3,8 @@ import {toast, openSheet, closeSheet, sheetHead, CK} from '../ui.js';
 import {state, profiles, activeProfile, switchProfile, addProfile, renameProfile, deleteProfile, updDB} from '../store.js';
 import {esc, fmtD} from '../format.js';
 import * as SY from '../sync.js';
+import {JOINTS} from '../data/exercises.js';
+import {openWizard} from './wizard.js';
 
 const ago = iso => {const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? 'только что' : m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : fmtD(iso);};
 let cmode = 'new';
@@ -30,14 +32,14 @@ export function openProfiles(after) {
     sh.innerHTML = `${sheetHead('Профили', '', 'У каждого свои тренировки, программа, заметки и фото')}<div class="sc">
       <div class="glist">${list.map(p => `<button class="gl-row prof${p.id === cur ? ' on' : ''}" data-pid="${esc(p.id)}"><span class="avatar sm">${initial(p.name)}</span><span class="t"><b>${esc(p.name)}</b><small>${p.id === cur ? 'сейчас открыт' : 'нажми, чтобы переключиться'}</small></span>${p.id === cur ? CK : '<span></span>'}</button>`).join('')}</div>
       <div class="tb2"><h4>${esc(me.name)} — настройки</h4>
-        <label class="chk"><input type="checkbox" id="pknee" ${knee ? 'checked' : ''}> Следить за коленями (вопрос после тренировки, осторожнее с весом на ноги)</label>
+        <p class="hint2 lead">Что беспокоит — приложение спросит про это после тренировки и не будет повышать вес, если болит.</p>
+        <div class="chipsel" id="ppain">${Object.entries(JOINTS).map(([j, t]) => `<button type="button" class="${(state.db.settings?.pain || (knee ? ['knee'] : [])).includes(j) ? 'on' : ''}" data-j="${j}">${t}</button>`).join('')}</div>
+        <button class="btn s2 sm" style="margin-top:12px" id="prebuild">Собрать программу заново под меня</button>
         <div class="g2" style="margin-top:12px"><button class="btn s2 sm" id="pren">Переименовать</button>${cur !== 'main' ? '<button class="btn s2 sm danger" id="pdel">Удалить профиль</button>' : '<span></span>'}</div></div>
       ${cloudHtml(me)}
       <div class="tb2"><h4>Новый человек</h4>
-        <div class="form"><label>Имя<input id="pname" maxlength="24" placeholder="Например: Ксюша"></label></div>
-        <label class="chk"><input type="checkbox" id="pnknee"> Беспокоят колени</label>
-        <button class="btn" style="margin-top:12px" id="padd">Добавить и открыть</button>
-        <p class="hint2">Программа у нового человека начнётся с этапа 1 — потом её можно поменять под себя в «Программе». На другом телефоне просто открой ту же ссылку: там всё будет своё.</p></div>
+        <button class="btn" id="padd">Добавить человека</button>
+        <p class="hint2">Короткая анкета: цель, сколько раз в неделю, опыт, что беспокоит и на что упор — и программа соберётся сама из упражнений твоего зала. На другом телефоне просто открой ту же ссылку: там всё будет своё.</p></div>
     </div>`;
     sh.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => {
       const id = b.dataset.pid;
@@ -45,7 +47,14 @@ export function openProfiles(after) {
       switchProfile(id); closeSheet(); after(true);
       toast('Открыт профиль: ' + profiles().find(p => p.id === id).name);
     });
-    sh.querySelector('#pknee').onchange = e => {updDB(d => ({...d, settings: {...(d.settings || {}), knee: e.target.checked}})); after(false);};
+    sh.querySelector('#ppain').onclick = e => {
+      const b = e.target.closest('[data-j]'); if (!b) return;
+      b.classList.toggle('on');
+      const pain = [...sh.querySelectorAll('#ppain .on')].map(x => x.dataset.j);
+      updDB(d => ({...d, settings: {...(d.settings || {}), pain, knee: pain.includes('knee')}}));
+      after(false);
+    };
+    sh.querySelector('#prebuild').onclick = () => openWizard('rebuild', () => after(false));
     sh.querySelector('#pren').onclick = () => {
       const n = prompt('Новое имя', me.name);
       if (n === null) return;
@@ -70,12 +79,7 @@ export function openProfiles(after) {
     if (cs) cs.onclick = async () => {cs.disabled = true; try {await SY.syncNow(); toast('Синхронизировано');} catch (e) {toast(e.message);} draw(sh); after(false);};
     const co = sh.querySelector('#cout');
     if (co) co.onclick = () => {if (confirm('Выйти из облака на этом телефоне? Данные на телефоне останутся, на сервере тоже.')) {SY.logout(); draw(sh);}};
-    sh.querySelector('#padd').onclick = () => {
-      try {
-        addProfile(sh.querySelector('#pname').value, {knee: sh.querySelector('#pnknee').checked});
-        closeSheet(); after(true); toast('Новый профиль открыт');
-      } catch (e) {toast(e.message);}
-    };
+    sh.querySelector('#padd').onclick = () => openWizard('new', () => after(true));
   };
   openSheet('', draw);
 }

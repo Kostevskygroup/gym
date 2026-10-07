@@ -27,7 +27,8 @@ test('a new profile starts empty and has its own data', () => {
   const id = store.addProfile('Ксюша', {knee: false});
   assert.equal(store.activeProfile(), id);
   assert.equal(store.state.db.goal, null);
-  assert.deepEqual(store.state.db.settings, {name: 'Ксюша', knee: false});
+  assert.equal(store.state.db.settings.name, 'Ксюша');
+  assert.deepEqual(store.state.db.settings.pain, []);
   store.setDB({...store.state.db, goal: 60});
   store.switchProfile('main');
   assert.equal(store.state.db.goal, 90);

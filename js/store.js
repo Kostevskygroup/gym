@@ -121,7 +121,8 @@ export function addProfile(name, opts = {}) {
   const n = cleanName(name), id = 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
   LS.set(PROF, JSON.stringify([...readList(), {id, name: n}]));
   switchProfile(id);
-  setDB({...state.db, settings: {name: n, knee: opts.knee !== false}});
+  const pain = Array.isArray(opts.pain) ? opts.pain : opts.knee ? ['knee'] : [];
+  setDB({...state.db, settings: normalizeDB({settings: {...opts, name: n, pain}}).settings});
   return id;
 }
 export function renameProfile(pid, name) {

@@ -1,6 +1,6 @@
 // Сводка по истории для экранов и достижений. Без DOM.
 import {DAY, r1} from './format.js';
-import {prMap, vol, totalVol, streak, target, kneeAvg} from './logic.js';
+import {prMap, vol, totalVol, streak, target, kneeAvg, painAvg} from './logic.js';
 import {exOf as exOfDb} from './program.js';
 import {EQUIP, hasPhoto} from './data/equipment.js';
 
@@ -16,6 +16,7 @@ export function stats(db, now = new Date()) {
     streak: streak(S, now, target(db.phase) - 1),
     last30: S.filter(s => +now - new Date(s.date) < 30 * DAY).length,
     knee: kneeAvg(S, exOf, 3),
+    pains: Object.fromEntries((db.settings && Array.isArray(db.settings.pain) ? db.settings.pain : ['knee']).map(j => [j, painAvg(S, exOf, j, 3)])),
     now,
   };
 }

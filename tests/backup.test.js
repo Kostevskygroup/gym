@@ -147,7 +147,8 @@ test('normalizeDR keeps valid drafts and repairs broken ones', () => {
   assert.equal(dr['p1|Б'], undefined);
   assert.deepEqual(dr.rest, {end: 5000, tot: 90, label: 'Отдых'});
   assert.deepEqual(normalizeDR(null), {});
-  assert.deepEqual(emptyDraft(), {start: null, last: null, ex: {}, knee: null, swap: {}, warm: {}, skip: {}});
+  assert.deepEqual(dr['p1|А'].pain, {knee: 3});
+  assert.deepEqual(emptyDraft(), {start: null, last: null, ex: {}, knee: null, pain: {}, swap: {}, warm: {}, skip: {}});
 });
 
 test('mergeDB into an app with no history keeps local settings, notes and plan', () => {
@@ -188,9 +189,12 @@ test('normalizeDB rejects inherited keys as equipment', () => {
 
 test('normalizeDB keeps profile settings and dismissed recommendations', () => {
   const db = normalizeDB({settings: {name: 'Ксюша', knee: false, junk: 1}, dismissed: {'plateau:lat': '2026-10-01T00:00:00Z', bad: 'x'}});
-  assert.deepEqual(db.settings, {name: 'Ксюша', knee: false});
+  assert.equal(db.settings.name, 'Ксюша');
+  assert.equal(db.settings.knee, false);
+  assert.deepEqual(db.settings.pain, []);
+  assert.equal(db.settings.junk, undefined);
   assert.deepEqual(db.dismissed, {'plateau:lat': '2026-10-01T00:00:00Z'});
-  assert.deepEqual(normalizeDB({}).settings, {name: '', knee: true});
+  assert.deepEqual(normalizeDB({}).settings.pain, ['knee']);
 });
 
 import {syncMerge, tombstone} from '../js/backup.js';
@@ -228,4 +232,28 @@ test('tombstones survive normalization', () => {
   const db = tombstone(normalizeDB({sessions: [sess(5, '2026-10-01')]}), 'sessions', 5, new Date('2026-10-02'));
   assert.equal(normalizeDB(JSON.parse(JSON.stringify(db))).tomb.sessions['5'], '2026-10-02T00:00:00.000Z');
   assert.equal(normalizeDB(db).sessions.length, 0);
+});
+
+test('legacy knee data maps into the general pain model', () => {
+  const db = normalizeDB({sessions: [{id: 1, date: '2026-10-01T10:00:00Z', knee: 3, entries: {lat: [{a: 40, b: 10}]}}], settings: {name: 'Я', knee: true}});
+  assert.deepEqual(db.sessions[0].pain, {knee: 3});
+  assert.equal(db.sessions[0].knee, 3);
+  assert.deepEqual(db.settings.pain, ['knee']);
+  const off = normalizeDB({settings: {knee: false}});
+  assert.deepEqual(off.settings.pain, []);
+});
+
+test('settings keep pain areas, focus and goal; garbage dropped', () => {
+  const db = normalizeDB({settings: {name: 'Ксюша', pain: ['back', 'shoulder', 'zz'], focus: ['glutes', 'nope'], goal: 'glutes', days: 3, level: 1}});
+  assert.deepEqual(db.settings.pain, ['back', 'shoulder']);
+  assert.deepEqual(db.settings.focus, ['glutes']);
+  assert.equal(db.settings.goal, 'glutes');
+  assert.equal(db.settings.days, 3);
+  assert.equal(db.settings.knee, false);
+});
+
+test('session pain values are clamped and kept per joint', () => {
+  const db = normalizeDB({sessions: [{id: 1, date: '2026-10-01T10:00:00Z', pain: {back: 12, shoulder: '4', bad: 3}, entries: {lat: [{a: 40, b: 10}]}}]});
+  assert.deepEqual(db.sessions[0].pain, {back: 10, shoulder: 4});
+  assert.equal(db.sessions[0].knee, null);
 });

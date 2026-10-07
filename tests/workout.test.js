@@ -250,3 +250,25 @@ test('circuitState: skipped stations are ignored, uneven row counts work', () =>
   assert.deepEqual(WK.circuitState([st(1, 0), st(1, 1, 1), st(1, 0)]), {rounds: 3, round: 1, cur: 0});
   assert.deepEqual(WK.circuitState([{...st(0), skip: true}]), {rounds: 0, round: 0, cur: -1});
 });
+
+test('pain: asks only for tracked joints the saved exercises load, and saves them per joint', () => {
+  store.setDB({...store.state.db, settings: {...store.state.db.settings, pain: ['knee', 'shoulder', 'wrist'], knee: true}});
+  const it = item('legpress');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true);
+  assert.deepEqual(WK.painsToAsk(K), ['knee']);
+  WK.setPain(K, 'knee', 3);
+  assert.deepEqual(WK.painsToAsk(K), []);
+  const s = WK.buildSession(K);
+  assert.deepEqual(s.pain, {knee: 3});
+  assert.equal(s.knee, 3);
+});
+
+test('pain: a profile that tracks nothing is never asked', () => {
+  store.setDB({...store.state.db, settings: {...store.state.db.settings, pain: [], knee: false}});
+  const it = item('legpress');
+  WK.editField(K, it, 0, 'a', 100);
+  WK.markSet(K, it, 0, true);
+  assert.deepEqual(WK.painsToAsk(K), []);
+  assert.equal(WK.needsKnee(K), false);
+});

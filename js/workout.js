@@ -19,7 +19,8 @@ export function itemsFor(k) {const [ph, wo] = splitKey(k); return P.itemsOf(stat
 
 export function optsFor(k, it, now = new Date()) {
   const [ph] = splitKey(k), e = P.exOf(state.db, it.id);
-  return {sessions: state.db.sessions, id: it.id, t: e.t, sets: it.s, reps: it.r, step: P.stepOf(state.db, it.id), phase: ph, now, knee: kneeTracked() && e.knee, kneeLast: L.kneeLast(state.db.sessions, id => P.exOf(state.db, id))};
+  const exOf = id => P.exOf(state.db, id), pains = Object.fromEntries(tracked().map(j => [j, L.painLast(state.db.sessions, exOf, j)]));
+  return {sessions: state.db.sessions, id: it.id, t: e.t, sets: it.s, reps: it.r, step: P.stepOf(state.db, it.id), phase: ph, now, load: L.exLoad(e), pains};
 }
 export const aimFor = (k, it) => L.aim(optsFor(k, it));
 export const rowsFor = (k, it) => draft(k).ex[it.id] || L.defaults(optsFor(k, it));
@@ -63,7 +64,8 @@ export function editField(k, it, idx, f, v) {
 export function addSet(k, it) {const rows = rowsFor(k, it), l = rows[rows.length - 1] || {a: '', b: ''}; setRows(k, it.id, [...rows, {a: l.a, b: l.b, done: false}]);}
 export function removeSet(k, it, idx) {const rows = rowsFor(k, it); if (rows.length > 1 && !rows[idx].done) setRows(k, it.id, rows.filter((_, j) => j !== idx));}
 export const setSkip = (k, id, on) => patchDraft(k, c => {const {[id]: _, ...rest} = c.skip; return {...c, skip: on ? {...rest, [id]: true} : rest};});
-export const setKnee = (k, v) => patchDraft(k, c => ({...c, knee: v}));
+export const setPain = (k, j, v) => patchDraft(k, c => {const pain = {...c.pain, [j]: v}; return {...c, pain, knee: pain.knee ?? null};});
+export const setKnee = (k, v) => setPain(k, 'knee', v);
 export const setWarm = (k, id, arr) => patchDraft(k, c => ({...c, warm: {...c.warm, [id]: arr}}));
 export function swapEx(k, origId, toId) {
   patchDraft(k, c => {
@@ -101,10 +103,21 @@ export function buildSession(k, now = Date.now()) {
   const dur = start ? Math.min(MAX_DUR_MIN, Math.max(1, Math.round((Math.min(end, last || end) - start) / 60000))) : null;
   const swaps = Object.keys(c.swap).length ? {...c.swap} : undefined;
   const out = Object.fromEntries(Object.entries(entries).map(([id, rows]) => {const t = P.exOf(state.db, id).t; return [id, rows.map(x => ({a: t === 'w' ? +x.a : null, b: +x.b}))];}));
-  return {id: end, date: new Date(end).toISOString(), phase, wo, knee: c.knee, entries: out, dur, ...(swaps ? {swaps} : {})};
+  const pain = Object.fromEntries(Object.entries(c.pain || {}).filter(([, v]) => v !== null && v !== undefined));
+  return {id: end, date: new Date(end).toISOString(), phase, wo, knee: pain.knee ?? null, pain, entries: out, dur, ...(swaps ? {swaps} : {})};
 }
-export const kneeTracked = () => !state.db.settings || state.db.settings.knee !== false;
-export const needsKnee = k => {const s = buildSession(k); return kneeTracked() && draft(k).knee === null && !!s && Object.keys(s.entries).some(id => P.exOf(state.db, id).knee);};
+// Какие суставы отслеживает профиль (у основного по умолчанию — колени).
+export const tracked = () => {const st = state.db.settings; return st && Array.isArray(st.pain) ? st.pain : (!st || st.knee !== false ? ['knee'] : []);};
+export const kneeTracked = () => tracked().includes('knee');
+// Про что спросить после тренировки: отслеживаемые суставы, нагруженные сохраняемыми упражнениями, ещё без ответа.
+export function painsToAsk(k) {
+  const s = buildSession(k), c = draft(k);
+  if (!s) return [];
+  return tracked().filter(j => c.pain[j] === undefined || c.pain[j] === null).filter(j => Object.keys(s.entries).some(id => (L.exLoad(P.exOf(state.db, id))[j] || 0) >= 1));
+}
+// Нагружает ли сегодняшняя тренировка отслеживаемые суставы (для карточки «Самочувствие»).
+export const painsToday = k => tracked().filter(j => itemsFor(k).some(it => (L.exLoad(P.exOf(state.db, it.id))[j] || 0) >= 1));
+export const needsKnee = k => painsToAsk(k).includes('knee');
 
 // Сохраняет тренировку. Черновик удаляется только если запись прошла.
 export function commit(k, s) {

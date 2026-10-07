@@ -685,3 +685,13 @@ body.timing .toast{bottom:calc(180px + env(safe-area-inset-bottom) + var(--lift,
 .cloud small{font:500 var(--fs-13) var(--body);color:var(--tx2)}
 .cloud.bad{background:var(--badd);box-shadow:none}.cloud.bad small{color:var(--bad-t)}
 .btn:disabled{opacity:.6}
+
+.pj+.pj{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+
+.dayops{display:flex;justify-content:space-between;gap:12px;margin-top:4px}
+.dayops .danger,.lnk.danger{color:var(--bad)}
+.pgf{margin-top:12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pgf::-webkit-scrollbar{display:none}
+.pgf button{white-space:nowrap;flex:none}
+.wiz .chipsel button{min-height:44px}
+input[type=search]{-webkit-appearance:none;appearance:none}

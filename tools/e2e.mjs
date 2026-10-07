@@ -107,13 +107,20 @@ try {
   console.log('Профили');
   const pr = await ev(`document.querySelector('nav [data-v=home]').click(); ${W(400)}
     document.querySelector('#profbtn').click(); ${W(400)}
-    document.querySelector('#pname').value = 'Гость'; document.querySelector('#padd').click(); ${W(800)}
-    const guest = {name: document.querySelector('#v-home .pt small').textContent, hist: JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith('gym.db@'))) || '{"sessions":[]}').sessions.length};
+    document.querySelector('#padd').click(); ${W(500)}
+    document.querySelector('#wname').value = 'Гость';
+    document.querySelector('#wpain [data-k=back]').click(); document.querySelector('#wfocus [data-k=glutes]').click(); document.querySelector('#wdays [data-k="3"]').click();
+    document.querySelector('#wgo').click(); ${W(900)}
+    const gdb = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith('gym.db@'))) || '{"sessions":[]}');
+    const {EX} = await import('./js/data/exercises.js');
+    const ids = gdb.plan ? Object.values(gdb.plan.p2.w).flat().map(x => x.id || x[0]) : [];
+    const guest = {name: document.querySelector('#v-home .pt small').textContent, hist: gdb.sessions.length, days: gdb.plan ? Object.keys(gdb.plan.p2.w).length : 0, backHeavy: ids.filter(id => (EX[id].load || {}).back >= 2), pain: gdb.settings.pain};
     document.querySelector('#profbtn').click(); ${W(400)}
     document.querySelector('#sheet [data-pid="main"]').click(); ${W(800)}
     const main = JSON.parse(localStorage.getItem('gym.db')).sessions.length;
     return {guest, main, home: document.querySelector('#v-home').innerHTML.length > 500, kneeOff: true};`);
   ok(/Гость/.test(pr.guest.name) && pr.guest.hist === 0, 'новый профиль «Гость» — пустой, со своим именем');
+  ok(pr.guest.days === 3 && pr.guest.backHeavy.length === 0 && pr.guest.pain.includes('back'), `анкета собрала программу на 3 дня без тяжёлого для спины${pr.guest.backHeavy.length ? ': ' + pr.guest.backHeavy.join(',') : ''}`);
   ok(pr.main === 2 && pr.home, 'вернулся к основному профилю — обе тренировки на месте');
 
   console.log('Без сети');

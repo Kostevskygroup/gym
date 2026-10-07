@@ -106,3 +106,10 @@ test('applyAction never creates a duplicate exercise in a workout', () => {
   const ids = itemsOf(d1, 'p2', 'Низ 1').map(x => x.id);
   assert.equal(ids.filter(x => x === 'rdl').length, 1);
 });
+
+test('shoulder pain trend suggests a shoulder-friendlier swap', () => {
+  const s = [9, 5, 2].map(d => S(d, 'Верх 1', {shoulder: W3(30, 10)}, {pain: {shoulder: 5}, knee: null}));
+  const k = insights(db(s, {settings: {name: '', pain: ['shoulder'], knee: false, focus: [], goal: '', days: null, level: null}}), now).find(x => x.kind === 'pain');
+  assert.ok(k, 'pain insight');
+  assert.match(k.title, /Плечи/);
+});

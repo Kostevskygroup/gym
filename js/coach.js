@@ -1,7 +1,7 @@
 // «Тренер»: рекомендации по истории тренировок, коленям и весу тела. Без DOM.
 // Каждая рекомендация: {kind, key, level: warn|info|good, title, text, ex?, action?}.
 import {DAY, r1, plural} from './format.js';
-import {e1rm, kneeAvg, streak, target, weekKey, alternatives} from './logic.js';
+import {e1rm, painAvg, exLoad, streak, target, weekKey, alternatives} from './logic.js';
 import * as P from './program.js';
 
 const HIDE_DAYS = 14, MAX_SHOWN = 4;
@@ -37,16 +37,28 @@ function plateaus(db, now) {
   return out;
 }
 
-function knees(db) {
-  const exOf = id => P.exOf(db, id), avg = kneeAvg(db.sessions, exOf, 3);
-  if (avg === null || avg < 4 || (db.settings && db.settings.knee === false)) return [];
-  const loaded = phaseItems(db, db.phase).filter(x => exOf(x.id).knee || exOf(x.id).risky);
-  const risky = loaded.find(x => exOf(x.id).risky);
-  const swap = loaded.map(x => ({from: x.id, to: bestAlt(db, x.id, db.phase, true)})).find(x => x.to);
-  const base = {kind: 'knee', level: 'warn', title: `Колени: в среднем ${avg}/10`};
-  if (risky) return [{...base, key: 'knee:rm:' + risky.id, text: `Последние дни ног колени болят. Убери ${name(db, risky.id)} — это самое тяжёлое для колен упражнение. Веса на ноги приложение уже не повышает.`, action: {type: 'remove', phase: db.phase, wo: risky.wo, id: risky.id, label: 'Убрать из программы'}}];
-  if (swap) return [{...base, key: 'knee:' + swap.from, text: `Последние дни ног колени болят. Замени ${name(db, swap.from)} на ${name(db, swap.to)} — меньше нагрузка на колени. Веса на ноги приложение уже не повышает.`, action: {type: 'swap', phase: db.phase, from: swap.from, to: swap.to, label: 'Заменить в программе'}}];
-  return [{...base, key: 'knee:avg', text: 'Последние дни ног колени болят. Веса на ноги приложение не повышает. Делай жим ногами не так глубоко, колени — строго по линии носков. Если боль держится — покажись врачу.'}];
+const JOINT_TITLE = {knee: 'Колени', back: 'Спина', shoulder: 'Плечи', elbow: 'Локти', wrist: 'Запястья', neck: 'Шея', hip: 'Таз', ankle: 'Голеностоп'};
+const trackedOf = db => db.settings && Array.isArray(db.settings.pain) ? db.settings.pain : (!db.settings || db.settings.knee !== false ? ['knee'] : []);
+const loadOf = (db, id, j) => (exLoad(P.exOf(db, id))[j] || 0);
+// Лучшая замена с меньшей нагрузкой на больной сустав.
+function gentlerAlt(db, id, j) {
+  const used = new Set(phaseItems(db, db.phase).map(x => x.id)), all = P.allEx(db);
+  return alternatives(id, all, [...used]).find(a => (exLoad(all[a])[j] || 0) < loadOf(db, id, j)) || null;
+}
+function pains(db) {
+  const exOf = id => P.exOf(db, id), out = [];
+  trackedOf(db).forEach(j => {
+    const avg = painAvg(db.sessions, exOf, j, 3);
+    if (avg === null || avg < 4) return;
+    const title = `${JOINT_TITLE[j]}: в среднем ${avg}/10`, kind = j === 'knee' ? 'knee' : 'pain';
+    const loaded = phaseItems(db, db.phase).filter(x => loadOf(db, x.id, j) >= 1);
+    const heavy = loaded.find(x => loadOf(db, x.id, j) >= 2), swap = loaded.map(x => ({from: x.id, to: gentlerAlt(db, x.id, j)})).find(x => x.to);
+    const base = {kind, level: 'warn', title};
+    if (heavy) out.push({...base, key: `pain:${j}:rm:${heavy.id}`, text: `${JOINT_TITLE[j]} болят последние тренировки. Убери ${name(db, heavy.id)} — для этого сустава это самое тяжёлое упражнение. Веса в упражнениях на этот сустав приложение уже не повышает.`, action: {type: 'remove', phase: db.phase, wo: heavy.wo, id: heavy.id, label: 'Убрать из программы'}});
+    else if (swap) out.push({...base, key: `pain:${j}:${swap.from}`, text: `${JOINT_TITLE[j]} болят последние тренировки. Замени ${name(db, swap.from)} на ${name(db, swap.to)} — меньше нагрузка. Веса на этот сустав приложение уже не повышает.`, action: {type: 'swap', phase: db.phase, from: swap.from, to: swap.to, label: 'Заменить в программе'}});
+    else out.push({...base, key: `pain:${j}:avg`, text: `${JOINT_TITLE[j]} болят последние тренировки. Веса на этот сустав приложение не повышает — работай легче и в комфортной амплитуде. Если боль держится — покажись врачу.`});
+  });
+  return out;
 }
 
 function skipped(db) {
@@ -107,7 +119,7 @@ const LEVEL = {warn: 0, info: 1, good: 2};
 export function insights(db, now = new Date()) {
   const hidden = db.dismissed || {};
   const fresh = x => !hidden[x.key] || +now - new Date(hidden[x.key]) > HIDE_DAYS * DAY;
-  return [...knees(db), ...plateaus(db, now), ...repeatedSwaps(db), ...skipped(db), ...consistency(db, now), ...body(db, now)]
+  return [...pains(db), ...plateaus(db, now), ...repeatedSwaps(db), ...skipped(db), ...consistency(db, now), ...body(db, now)]
     .filter(fresh).sort((a, b) => LEVEL[a.level] - LEVEL[b.level]).slice(0, MAX_SHOWN);
 }
 

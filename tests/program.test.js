@@ -101,3 +101,18 @@ test('pickerGroups lists every usable exercise once, grouped by equipment', () =
   Object.keys(EX).filter(id => !EX[id].retired).forEach(id => assert.ok(ids.includes(id), id));
   g.forEach(x => x.items.forEach(id => assert.equal(EX[id].img, x.eq)));
 });
+
+import {addDay, renameDay, removeDay} from '../js/program.js';
+
+test('days: add, rename and remove apply to every phase; the last day cannot be removed', () => {
+  let db = addDay(db0(), 'Ягодицы');
+  for (const ph of ['p1', 'p2', 'p3']) assert.ok(planOf(db)[ph].w['Ягодицы'], ph);
+  assert.throws(() => addDay(db, 'Ягодицы'), /уже есть/);
+  db = renameDay(db, 'Ягодицы', 'Низ+');
+  for (const ph of ['p1', 'p2', 'p3']) {assert.ok(planOf(db)[ph].w['Низ+']); assert.equal(planOf(db)[ph].w['Ягодицы'], undefined);}
+  db = removeDay(db, 'Низ+');
+  assert.equal(planOf(db).p2.w['Низ+'], undefined);
+  let one = {...db0(), plan: {p1: {label: 'a', sub: '', hint: '', w: {'А': []}}, p2: {label: 'b', sub: '', hint: '', w: {'А': []}}, p3: {label: 'c', sub: '', hint: '', w: {'А': []}}}};
+  assert.throws(() => removeDay(one, 'А'), /последний/);
+  assert.throws(() => addDay(db0(), '  '), /название/);
+});

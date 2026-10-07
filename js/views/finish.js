@@ -21,14 +21,17 @@ export function finish(k) {
     if (!confirm(`Не отмечено ${n} ${plural(n, 'подход', 'подхода', 'подходов')}: ${names}${miss.length > 3 ? '…' : ''}. Завершить без них?`)) return;
   }
   if (!WK.buildSession(k)) {toast('Отметь ✓ хотя бы один подход'); return;}
-  if (WK.needsKnee(k)) return askKnee(k, () => save(k));
-  save(k);
+  askPains(k, WK.painsToAsk(k), () => save(k));
 }
 
-function askKnee(k, next) {
-  openSheet(`${sheetHead('Как колени сегодня?')}<div class="sc"><p class="hint2 lead">0 — ничего не чувствую, 10 — сильная боль. От этого зависит, повышать ли вес на ноги.</p>
+const JQ = {knee: 'Как колени сегодня?', back: 'Как спина сегодня?', shoulder: 'Как плечи сегодня?', elbow: 'Как локти сегодня?', wrist: 'Как запястья сегодня?', neck: 'Как шея сегодня?', hip: 'Как тазобедренные сегодня?', ankle: 'Как голеностоп сегодня?'};
+// По очереди про каждый отслеживаемый сустав, который нагружала тренировка.
+function askPains(k, joints, next) {
+  if (!joints.length) {closeSheet(); next(); return;}
+  const [j, ...rest] = joints;
+  openSheet(`${sheetHead(JQ[j] || 'Как самочувствие?', rest.length ? `ещё ${rest.length}` : '')}<div class="sc"><p class="hint2 lead">0 — ничего не чувствую, 10 — сильная боль. От этого зависит, повышать ли вес в упражнениях на этот сустав.</p>
     <div class="knees">${Array.from({length: 11}, (_, i) => `<button data-v="${i}">${i}</button>`).join('')}</div></div>`, sh => {
-    sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {WK.setKnee(k, +b.dataset.v); closeSheet(); next();});
+    sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {WK.setPain(k, j, +b.dataset.v); askPains(k, rest, next);});
   });
 }
 
@@ -40,7 +43,7 @@ export function saveStale(k, after) {
     toast('Сохранено с датой ' + fmtD(s.date));
     after && after();
   };
-  if (WK.needsKnee(k)) askKnee(k, run); else run();
+  askPains(k, WK.painsToAsk(k), run);
 }
 
 function save(k) {

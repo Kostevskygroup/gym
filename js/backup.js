@@ -6,8 +6,19 @@ export const DB_V = 2;
 const PHASES = ['p1', 'p2', 'p3'];
 const TYPES = ['w', 'r', 't', 'c'];
 const STEPS = [0.5, 1, 1.25, 2, 2.5, 4, 5, 10];
+export const JOINT_KEYS = ['knee', 'back', 'shoulder', 'elbow', 'wrist', 'neck', 'hip', 'ankle'];
+export const FOCUS_KEYS = ['glutes', 'legs', 'back', 'chest', 'arms', 'shoulders', 'core', 'posture', 'fatloss'];
+export const GOAL_KEYS = ['glutes', 'fatloss', 'strength', 'general'];
+const clampPain = v => v === null || v === undefined || v === '' || !Number.isFinite(+v) ? null : Math.min(10, Math.max(0, Math.round(+v)));
+function normPain(p, legacyKnee) {
+  const out = {};
+  if (obj(p)) JOINT_KEYS.forEach(j => {const v = clampPain(p[j]); if (v !== null) out[j] = v;});
+  const k = clampPain(legacyKnee);
+  if (k !== null && out.knee === undefined) out.knee = k;
+  return out;
+}
 
-export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, settings: {name: '', knee: true}, dismissed: {}, tomb: {sessions: {}, bw: {}, waist: {}}, updatedAt: 0});
+export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, settings: {name: '', knee: true, pain: ['knee'], focus: [], goal: '', days: null, level: null}, dismissed: {}, tomb: {sessions: {}, bw: {}, waist: {}}, updatedAt: 0});
 
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const okDate = d => typeof d === 'string' && Number.isFinite(Date.parse(d));
@@ -24,9 +35,9 @@ function normSession(s) {
   if (!obj(s) || !okDate(s.date) || !obj(s.entries)) return null;
   const entries = {};
   Object.entries(s.entries).forEach(([id, rows]) => {const r = normRows(rows); if (r.length) entries[id] = r;});
-  const knee = s.knee === null || s.knee === undefined || s.knee === '' ? null : Math.min(10, Math.max(0, Math.round(n(s.knee)) || 0));
+  const pain = normPain(s.pain, s.knee), knee = pain.knee ?? null;
   const id = (typeof s.id === 'number' || (typeof s.id === 'string' && s.id.trim())) && Number.isFinite(+s.id) && +s.id > 0 ? +s.id : Date.parse(s.date);
-  const out = {id, date: new Date(s.date).toISOString(), phase: PHASES.includes(s.phase) ? s.phase : 'p1', wo: String(s.wo ?? ''), knee, entries, dur: Number.isFinite(+s.dur) && s.dur > 0 ? Math.min(600, Math.round(+s.dur)) : null};
+  const out = {id, date: new Date(s.date).toISOString(), phase: PHASES.includes(s.phase) ? s.phase : 'p1', wo: String(s.wo ?? ''), knee, pain, entries, dur: Number.isFinite(+s.dur) && s.dur > 0 ? Math.min(600, Math.round(+s.dur)) : null};
   if (obj(s.swaps)) out.swaps = {...s.swaps};
   return out;
 }
@@ -94,7 +105,17 @@ export function normalizeDB(raw) {
   db.custom = normCustom(d.custom);
   db.exs = normExs(d.exs);
   db.lastBackup = okDate(d.lastBackup) ? d.lastBackup : null;
-  if (obj(d.settings)) db.settings = {name: typeof d.settings.name === 'string' ? d.settings.name.trim().slice(0, 24) : '', knee: d.settings.knee !== false};
+  if (obj(d.settings)) {
+    const st = d.settings, pain = Array.isArray(st.pain) ? JOINT_KEYS.filter(j => st.pain.includes(j)) : (st.knee !== false ? ['knee'] : []);
+    db.settings = {
+      name: typeof st.name === 'string' ? st.name.trim().slice(0, 24) : '',
+      pain, knee: pain.includes('knee'),
+      focus: Array.isArray(st.focus) ? FOCUS_KEYS.filter(f => st.focus.includes(f)) : [],
+      goal: GOAL_KEYS.includes(st.goal) ? st.goal : '',
+      days: Number.isInteger(+st.days) && st.days >= 1 && st.days <= 6 ? +st.days : null,
+      level: st.level === 1 || st.level === 2 ? st.level : null,
+    };
+  }
   if (obj(d.dismissed)) Object.entries(d.dismissed).forEach(([k, v]) => {if (okDate(v)) db.dismissed[k] = v;});
   if (obj(d.tomb)) ['sessions', 'bw', 'waist'].forEach(k => {if (obj(d.tomb[k])) Object.entries(d.tomb[k]).forEach(([id, v]) => {if (okDate(v)) db.tomb[k][id] = v;});});
   db.sessions = db.sessions.filter(s => !db.tomb.sessions[String(s.id)]);
@@ -162,7 +183,7 @@ export function backupDue(db, now = new Date()) {
 }
 
 // ---- черновик идущей тренировки ----
-export const emptyDraft = () => ({start: null, last: null, ex: {}, knee: null, swap: {}, warm: {}, skip: {}});
+export const emptyDraft = () => ({start: null, last: null, ex: {}, knee: null, pain: {}, swap: {}, warm: {}, skip: {}});
 const fin = v => Number.isFinite(+v) && v !== null && v !== '' ? +v : null;
 const strMap = m => obj(m) ? Object.fromEntries(Object.entries(m).filter(([, v]) => typeof v === 'string')) : {};
 const boolMap = m => obj(m) ? Object.fromEntries(Object.entries(m).filter(([, v]) => v === true)) : {};
@@ -184,7 +205,8 @@ function normDraft(c) {
   d.start = fin(c.start);
   const ts = Object.values(d.ex).flat().map(x => x.t || 0);
   d.last = fin(c.last) ?? (ts.length && Math.max(...ts) ? Math.max(...ts) : d.start);
-  d.knee = fin(c.knee) === null ? null : Math.min(10, Math.max(0, Math.round(+c.knee)));
+  d.pain = normPain(c.pain, c.knee);
+  d.knee = d.pain.knee ?? null;
   d.swap = strMap(c.swap);
   d.skip = boolMap(c.skip);
   if (obj(c.warm)) Object.entries(c.warm).forEach(([id, v]) => {if (Array.isArray(v)) d.warm[id] = v.map(x => x === true);});

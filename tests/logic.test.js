@@ -229,8 +229,9 @@ test('alternatives stay within the muscle group and skip excluded ids', () => {
 });
 
 test('alternatives put knee-loading moves last', () => {
-  const alt = alternatives('legpress', EX, []);
-  assert.equal(alt[alt.length - 1], 'legext');
+  const alt = alternatives('legpress', EX, []), kl = id => EX[id].risky ? 2 : EX[id].knee ? 1 : 0;
+  assert.ok(alt.includes('legext'));
+  for (let i = 1; i < alt.length; i++) assert.ok(kl(alt[i]) >= kl(alt[i - 1]), alt.slice(i - 1, i + 1).join(' → '));
 });
 
 test('sanity flags likely typos', () => {
@@ -285,4 +286,27 @@ test('kneeLast returns the most recent recorded leg-day knee score', async () =>
   const s = [S('2026-10-01', {legpress: W3(100, 12)}, {knee: 2}), S('2026-10-02', {lat: W3(40, 10)}, {knee: 9}), S('2026-10-03', {hipthrust: W3(60, 10)}, {knee: null})];
   assert.equal(kneeLast(s, exOf), 2);
   assert.equal(kneeLast([], exOf), null);
+});
+
+test('aim: pain in any tracked joint the exercise loads holds or lowers the weight', async () => {
+  const s = [S('2026-10-08', {shoulder: W3(30, 10, 10, 10)}, {pain: {shoulder: 5}})];
+  const base = {id: 'shoulder', t: 'w', sets: 3, reps: '10', step: 2.5, phase: 'p2', now, sessions: s, load: {shoulder: 1, back: 1}};
+  const hold = aim({...base, pains: {shoulder: 5}});
+  assert.equal(hold.up, false);
+  assert.equal(hold.w, 30);
+  assert.match(hold.why, /плечи 5\/10/);
+  const lower = aim({...base, pains: {shoulder: 7}});
+  assert.equal(lower.w, 27.5);
+  const other = aim({...base, pains: {knee: 9}});
+  assert.equal(other.up, true, 'knee pain does not affect a shoulder press');
+});
+
+test('painLast / painAvg per joint', async () => {
+  const {painLast, painAvg} = await import('../js/logic.js');
+  const ex = id => ({shoulder: {load: {shoulder: 1}}, legpress: {load: {knee: 1}}, lat: {load: {}}})[id] || {load: {}};
+  const s = [S('2026-10-01', {shoulder: W3(30, 10)}, {pain: {shoulder: 2}}), S('2026-10-02', {legpress: W3(90, 10)}, {pain: {knee: 6}}), S('2026-10-03', {shoulder: W3(30, 10)}, {pain: {shoulder: 4}})];
+  assert.equal(painLast(s, ex, 'shoulder'), 4);
+  assert.equal(painLast(s, ex, 'knee'), 6);
+  assert.equal(painAvg(s, ex, 'shoulder', 3), 3);
+  assert.equal(painLast(s, ex, 'wrist'), null);
 });
