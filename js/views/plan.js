@@ -1,6 +1,6 @@
 // Редактор программы: подходы, повторы, порядок, добавить/убрать, свои упражнения.
 // Добавлять можно только упражнения на тренажёрах твоего зала.
-import {$, toast, openSheet, closeSheet, ICON} from '../ui.js';
+import {$, toast, openSheet, closeSheet, ICON, sheetHead, fadeRows} from '../ui.js';
 import {state, updDB} from '../store.js';
 import * as P from '../program.js';
 import {esc} from '../format.js';
@@ -25,18 +25,20 @@ function draw(sh) {
   const db = state.db, keys = P.woKeys(db, ph);
   if (!keys.includes(wo)) wo = keys[0];
   const items = P.itemsOf(db, ph, wo);
-  sh.innerHTML = `<span class="grab"></span><div class="sc"><h2>Программа</h2>
-  <p class="hint2">Изменения сразу попадут в тренировки. История и рекорды не трогаются.</p>
+  const firstCore = items.findIndex(it => it.blk === 'core');
+  sh.innerHTML = `${sheetHead('Программа')}<div class="sc">
+  <p class="hint2 lead">Изменения сразу попадут в тренировки. История и рекорды не трогаются.</p>
   <div class="seg" id="pph">${P.PHASES.map(p => `<button class="${p === ph ? 'on' : ''}" data-p="${p}">${esc(P.phaseOf(db, p).label)}</button>`).join('')}</div>
   <div class="wos">${keys.map(k => `<button class="${k === wo ? 'on' : ''}" data-w="${esc(k)}">${esc(k)}</button>`).join('')}</div>
-  <div class="plist">${items.map((it, i) => {const e = P.exOf(db, it.id); return `<div class="pi" data-i="${i}">${thumb(e)}<div class="t"><b>${esc(e.n)}</b><small>${esc(EQUIP[e.img]?.n || '')}</small>
-    <div class="pc">${e.t === 'c' ? '' : `<div class="mini"><button data-a="sm" aria-label="Меньше подходов">−</button><b class="n">${it.s}</b><button data-a="sp" aria-label="Больше подходов">+</button><span>подх.</span></div>`}
-    <label class="rp"><input value="${esc(it.r)}" data-a="r" aria-label="Повторы" maxlength="12"><span>${e.t === 't' ? 'сек' : e.t === 'c' ? 'мин' : 'повт'}</span></label></div></div>
-    <div class="pa"><button data-a="up" aria-label="Выше">${ICON.up}</button><button data-a="dn" aria-label="Ниже">${ICON.down}</button><button data-a="rm" aria-label="Убрать">${ICON.x}</button></div></div>`;}).join('')}</div>
+  <div class="plist">${items.map((it, i) => {const e = P.exOf(db, it.id), core = it.blk === 'core'; return `${i === firstCore ? '<div class="pgrp">Пресс · круг<small>подряд без отдыха</small></div>' : ''}<div class="pi" data-i="${i}">${thumb(e)}<div class="t">${core && P.ROLE[e.cr] ? `<small class="role">${P.ROLE[e.cr]}</small>` : ''}<b>${esc(e.n)}</b><small>${esc(EQUIP[e.img]?.n || '')}</small>
+    <div class="pc">${e.t === 'c' ? '' : `<div class="mini"><button data-a="sm" aria-label="Меньше подходов">−</button><b class="n">${it.s}</b><button data-a="sp" aria-label="Больше подходов">+</button></div><span class="x">×</span>`}
+    <label class="rp"><input value="${esc(it.r)}" data-a="r" aria-label="Повторы" maxlength="12"><span>${e.t === 't' ? 'сек' : e.t === 'c' ? 'мин' : 'повт'}</span></label>
+    <div class="pa"><button data-a="up" aria-label="Выше"${i ? '' : ' disabled'}>${ICON.up}</button><button data-a="dn" aria-label="Ниже"${i < items.length - 1 ? '' : ' disabled'}>${ICON.down}</button></div></div></div>
+    <button class="prm" data-a="rm" aria-label="Убрать «${esc(e.n)}»">${ICON.x}</button></div>`;}).join('')}</div>
   <button class="btn s2" style="margin-top:12px" id="padd">+ Добавить упражнение</button>
-  <button class="btn s2" style="margin-top:8px" id="pown">+ Своё упражнение на тренажёре зала</button>
-  ${db.plan ? '<button class="textbtn" id="preset">Вернуть исходную программу</button>' : ''}
-  <button class="btn" style="margin-top:14px" id="pdone">Готово</button></div>`;
+  <button class="btn s2" style="margin-top:8px" id="pown">+ Своё упражнение</button>
+  ${db.plan ? '<button class="textbtn" id="preset">Вернуть исходную программу</button>' : ''}</div>`;
+  fadeRows(sh);
   sh.querySelectorAll('#pph [data-p]').forEach(b => b.onclick = () => {ph = b.dataset.p; draw(sh);});
   sh.querySelectorAll('.wos [data-w]').forEach(b => b.onclick = () => {wo = b.dataset.w; draw(sh);});
   sh.querySelector('.plist').onclick = ev => {
@@ -57,12 +59,11 @@ function draw(sh) {
   sh.querySelector('#pown').onclick = () => ownForm(sh);
   const rs = sh.querySelector('#preset');
   if (rs) rs.onclick = () => {if (confirm('Вернуть исходную программу? Твои правки программы пропадут, история останется.')) {apply(P.resetPlan); draw(sh); toast('Программа как в начале');}};
-  sh.querySelector('#pdone').onclick = closeSheet;
 }
 
 function picker(sh) {
   const db = state.db, inWo = P.itemsOf(db, ph, wo).map(x => x.id), all = P.allEx(db);
-  sh.innerHTML = `<span class="grab"></span><div class="sc"><h2>Добавить в «${esc(wo)}»</h2><p class="hint2">Только тренажёры твоего зала.</p>
+  sh.innerHTML = `${sheetHead(`Добавить в «${esc(wo)}»`)}<div class="sc"><p class="hint2 lead">Только тренажёры твоего зала.</p>
   ${P.pickerGroups(db).map(g => `<div class="pg"><div class="pgh">${hasPhoto(g.eq) ? `<img src="img/${g.eq}.jpg" alt="">` : '<span class="noph"></span>'}<b>${esc(EQUIP[g.eq].n)}</b></div>
     ${g.items.map(id => ` <button class="pk" data-id="${esc(id)}" ${inWo.includes(id) ? 'disabled' : ''}><b>${esc(all[id].n)}</b><small>${esc(P.GROUPS[all[id].g] || '')}${all[id].knee ? ' · колени' : ''}${inWo.includes(id) ? ' · уже есть' : ''}</small></button>`).join('')}</div>`).join('')}
   <button class="btn s2" style="margin-top:14px" id="pback">Назад</button></div>`;
@@ -72,7 +73,7 @@ function picker(sh) {
 }
 
 function ownForm(sh) {
-  sh.innerHTML = `<span class="grab"></span><div class="sc"><h2>Своё упражнение</h2><p class="hint2">Только на оборудовании твоего зала. Фото техники добавишь потом в «Технике».</p>
+  sh.innerHTML = `${sheetHead('Своё упражнение')}<div class="sc"><p class="hint2 lead">Только на оборудовании твоего зала. Фото техники добавишь потом в «Технике».</p>
   <div class="form">
     <label>Название<input id="on" maxlength="40" placeholder="Например: Шраги в Смите"></label>
     <label>Тренажёр<select id="oe">${Object.entries(EQUIP).map(([k, v]) => `<option value="${k}">${esc(v.n)}</option>`).join('')}</select></label>

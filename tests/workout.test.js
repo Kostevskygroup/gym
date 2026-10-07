@@ -130,7 +130,7 @@ test('commit saves the session, unlocks achievements, removes the draft; undo re
   const s = WK.buildSession(K);
   const r = WK.commit(K, s);
   assert.equal(r.ok, true);
-  assert.ok(r.fresh.includes('Первая трен.'));
+  assert.ok(r.fresh.includes('Первая тренировка'));
   assert.equal(store.state.db.sessions.length, 1);
   assert.equal(store.state.dr[K], undefined);
   WK.undoCommit(s, K, r.keep);
@@ -233,4 +233,20 @@ test('rest: core circuit rests only after the last exercise of the round', () =>
   const core = WK.itemsFor(K).filter(x => x.blk === 'core');
   assert.equal(WK.restFor(core[0], 'p2'), 0);
   assert.equal(WK.restFor(core[2], 'p2'), 60);
+});
+
+test('circuitState: walks stations in order, round by round', () => {
+  const st = (...rows) => ({rows: rows.map(done => ({done}))});
+  assert.deepEqual(WK.circuitState([st(0, 0, 0), st(0, 0, 0), st(0, 0, 0)]), {rounds: 3, round: 0, cur: 0});
+  assert.deepEqual(WK.circuitState([st(1, 0, 0), st(0, 0, 0), st(0, 0, 0)]), {rounds: 3, round: 0, cur: 1});
+  assert.deepEqual(WK.circuitState([st(1, 0, 0), st(1, 0, 0), st(1, 0, 0)]), {rounds: 3, round: 1, cur: 0});
+  assert.deepEqual(WK.circuitState([st(1, 1, 1), st(1, 1, 1), st(1, 1, 1)]), {rounds: 3, round: 3, cur: -1});
+});
+
+test('circuitState: skipped stations are ignored, uneven row counts work', () => {
+  const st = (...rows) => ({rows: rows.map(done => ({done}))});
+  assert.deepEqual(WK.circuitState([{...st(0, 0), skip: true}, st(0, 0), st(0, 0)]), {rounds: 2, round: 0, cur: 1});
+  assert.deepEqual(WK.circuitState([st(1, 1), st(1, 1, 0), st(1, 1)]), {rounds: 3, round: 2, cur: 1});
+  assert.deepEqual(WK.circuitState([st(1, 0), st(1, 1, 1), st(1, 0)]), {rounds: 3, round: 1, cur: 0});
+  assert.deepEqual(WK.circuitState([{...st(0), skip: true}]), {rounds: 0, round: 0, cur: -1});
 });

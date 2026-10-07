@@ -5,7 +5,6 @@ import {state, setRest} from './store.js';
 import {fmtT} from './format.js';
 import {beep, haptic} from './platform.js';
 
-const ARC = 144.5;
 let int = null, rang = false;
 
 export function startRest(sec, label) {
@@ -46,8 +45,8 @@ function tick() {
   $('#timer').classList.toggle('over', over);
   $('#tlabel').textContent = over ? 'Отдых окончен — подход!' : r.label;
   $('#tval').textContent = over ? '+' + fmtT(-left) : fmtT(Math.ceil(left));
-  $('#tarc').style.strokeDashoffset = over ? 0 : ARC * (1 - Math.max(0, left) / r.tot);
-  $('#tarc').style.stroke = over || left <= 10 ? '#6BC28A' : '#F5C842';
+  $('#timer').style.setProperty('--p', over ? 1 : Math.max(0, left) / r.tot);
+  $('#timer').classList.toggle('low', !over && left <= 10);
   if (over && !rang) {rang = true; beep(); haptic([250, 120, 250]);}
   if (-left > OVER_LIMIT_S) stopRest();
 }

@@ -21,7 +21,7 @@ test('checkAch is immutable and reports only new achievements', () => {
   const r = checkAch(ach0, stats(db, now));
   assert.deepEqual(ach0, {});
   assert.ok(r.ach.first);
-  assert.deepEqual(r.fresh, ['Первая трен.']);
+  assert.deepEqual(r.fresh, ['Первая тренировка']);
   assert.deepEqual(checkAch(r.ach, stats(db, now)).fresh, []);
 });
 

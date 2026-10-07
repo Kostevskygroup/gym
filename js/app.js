@@ -41,6 +41,8 @@ function crash(e) {
 function bindGlobal() {
   $$('nav button').forEach(b => b.onclick = () => {if (sheetOpen()) closeSheet(); go(b.dataset.v);});
   $('#sheetov').onclick = e => {if (e.target.id === 'sheetov') closeSheet();};
+  // ✕ в шапке любой шторки; делегирование переживает перерисовку содержимого.
+  $('#sheet').addEventListener('click', e => {if (e.target.closest('[data-close]')) closeSheet();});
   $('#tplus').onclick = () => {unlockAudio(); adjust(15);};
   $('#tminus').onclick = () => {unlockAudio(); adjust(-15);};
   $('#tstop').onclick = stopRest;

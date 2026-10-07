@@ -1,10 +1,11 @@
 // Завершение тренировки: проверки, сохранение, экран итогов с отменой.
-import {$, toast, openSheet, closeSheet} from '../ui.js';
+import {$, toast, openSheet, closeSheet, sheetHead, fadeRows} from '../ui.js';
 import {state} from '../store.js';
 import * as P from '../program.js';
 import * as WK from '../workout.js';
 import {prMap, vol} from '../logic.js';
-import {esc, fmtD, r1, plural, UNIT} from '../format.js';
+import {esc, fmtD, fmtN, ruDec, r1, plural, UNIT} from '../format.js';
+import {ACH} from '../stats.js';
 import {keepAwake, haptic} from '../platform.js';
 import {stopRest} from '../timer.js';
 import {planWeek} from '../logic.js';
@@ -25,7 +26,7 @@ export function finish(k) {
 }
 
 function askKnee(k, next) {
-  openSheet(`<span class="grab"></span><div class="sc"><h2>Как колени сегодня?</h2><p class="hint2">0 — ничего не чувствую, 10 — сильная боль. От этого зависит, повышать ли вес на ноги.</p>
+  openSheet(`${sheetHead('Как колени сегодня?')}<div class="sc"><p class="hint2 lead">0 — ничего не чувствую, 10 — сильная боль. От этого зависит, повышать ли вес на ноги.</p>
     <div class="knees">${Array.from({length: 11}, (_, i) => `<button data-v="${i}">${i}</button>`).join('')}</div></div>`, sh => {
     sh.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {WK.setKnee(k, +b.dataset.v); closeSheet(); next();});
   });
@@ -80,19 +81,21 @@ export function report(s, prs) {
 function showDone(s, r, k) {
   const exOf = id => P.exOf(state.db, id), prs = prMap(state.db.sessions, exOf).get(s.id) || [];
   const v = vol(s, exOf), ns = Object.values(s.entries).reduce((a, e) => a + e.length, 0), imps = improvements(s);
-  $('#d-title').textContent = prs.length ? (prs.length === 1 ? 'Новый рекорд!' : `${prs.length} ${plural(prs.length, 'новый рекорд', 'новых рекорда', 'новых рекордов')}!`) : r.fresh.length ? 'Новое достижение!' : 'Отличная работа!';
-  $('#d-sub').textContent = `Тренировка ${s.wo} · №${state.db.sessions.length}`;
-  $('#d-stats').innerHTML = [['Время', s.dur || 0, s.dur ? ' мин' : ''], ['Объём', v >= 1000 ? r1(v / 1000) : Math.round(v), v >= 1000 ? ' т' : ' кг'], ['Подходов', ns, ''], ['Рекордов', prs.length, '']]
-    .map(([l, n, u]) => `<div class="st"><small>${l}</small><b class="n"><span data-cnt="${n}" style="font-size:inherit;color:inherit">0</span><span>${u}</span></b></div>`).join('');
-  $('#d-hl').innerHTML = prs.map(p => `<p class="pr"><i>PR</i><span>${esc(exOf(p.id).n)}: ${esc(p.txt)}</span></p>`).join('')
-    + r.fresh.map(x => `<p class="ac"><i>★</i><span>Достижение: ${esc(x)}</span></p>`).join('')
-    + imps.map(x => `<p class="im"><i>↑</i><span>${esc(x)}</span></p>`).join('')
+  $('#d-title').textContent = prs.length ? (prs.length === 1 ? 'Новый рекорд!' : `${prs.length} ${plural(prs.length, 'новый рекорд', 'новых рекорда', 'новых рекордов')}!`) : 'Отличная работа!';
+  $('#d-sub').textContent = `${s.wo} · №${state.db.sessions.length}`;
+  $('#d-stats').innerHTML = [['Время', s.dur || 0, 'мин'], ['Объём', v >= 1000 ? r1(v / 1000) : Math.round(v), v >= 1000 ? 'т' : 'кг'], ['Подходов', ns, ''], ['Рекордов', prs.length, '']]
+    .filter(([, n]) => n > 0)
+    .map(([l, n, u]) => `<div><small>${l}</small><b class="n"><em data-cnt="${n}">0</em>${u ? `<span>${u}</span>` : ''}</b></div>`).join('');
+  $('#d-hl').innerHTML = prs.map(p => `<p class="pr"><i>PR</i><span>${esc(exOf(p.id).n)}: ${esc(ruDec(p.txt))}</span></p>`).join('')
+    + imps.map(x => `<p class="im"><i>↑</i><span>${esc(ruDec(x))}</span></p>`).join('')
     + (s.knee > 3 ? `<p class="wr"><i>!</i><span>Колени ${s.knee}/10 — вес на ноги в следующий раз не повышаем</span></p>` : '');
+  $('#d-ach').innerHTML = r.fresh.length ? `<div class="sec"><b>Новые достижения</b><span>${r.fresh.length}</span></div><div class="medals">${r.fresh.map(x => {const a = ACH.find(y => y[2] === x); return `<div class="md"><span>${esc(a ? a[1] : '★')}</span>${esc(x)}</div>`;}).join('')}</div>` : '';
   $('#d-txt').textContent = report(s, prs);
   const due = backupDue(state.db);
   $('#d-backup').style.display = due.due ? 'flex' : 'none';
   $('#doneov').classList.add('on');
   $('#doneov').scrollTop = 0;
+  fadeRows($('#d-ach'));
   haptic([30, 60, 30]);
   countUp();
   confetti(prs.length || r.fresh.length ? 160 : 70);
@@ -109,9 +112,9 @@ const RM = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function countUp() {
   document.querySelectorAll('[data-cnt]').forEach(el => {
     const to = +el.dataset.cnt, dec = to % 1 !== 0;
-    if (RM()) {el.textContent = to; return;}
+    if (RM()) {el.textContent = fmtN(to, 1); return;}
     const t0 = performance.now();
-    const f = t => {const p = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - p, 3); el.textContent = dec ? (to * e).toFixed(1) : Math.round(to * e); if (p < 1) requestAnimationFrame(f);};
+    const f = t => {const p = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - p, 3); el.textContent = dec ? fmtN((to * e).toFixed(1), 1) : Math.round(to * e); if (p < 1) requestAnimationFrame(f);};
     requestAnimationFrame(f);
   });
 }

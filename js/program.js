@@ -4,6 +4,8 @@ import {W} from './data/program.js';
 import {EQUIP} from './data/equipment.js';
 
 export const PHASES = ['p1', 'p2', 'p3'];
+// Роли трёх мест в круге пресса — одинаковые в каждой тренировке.
+export const ROLE = {stab: 'Стабилизация', flex: 'Скручивание', side: 'Анти-вращение и бок'};
 export const TYPES = {w: 'Вес и повторы', r: 'Только повторы', t: 'Секунды', c: 'Минуты'};
 export const GROUPS = {
   quads: 'Передняя поверхность бедра', hams: 'Задняя поверхность бедра', glutes: 'Ягодицы', gmed: 'Боковая ягодичная',

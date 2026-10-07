@@ -1,10 +1,10 @@
 // Шторки: техника на фото твоего тренажёра, свои фото, замена, заметка и шаг веса.
-import {$, $$, toast, openSheet, closeSheet, ICON} from '../ui.js';
+import {$, $$, toast, openSheet, closeSheet, ICON, sheetHead} from '../ui.js';
 import {state, draft, updDB} from '../store.js';
 import * as P from '../program.js';
 import * as L from '../logic.js';
 import * as WK from '../workout.js';
-import {esc, fmtD} from '../format.js';
+import {esc, fmtD, fmtN} from '../format.js';
 import {EQUIP, hasPhoto} from '../data/equipment.js';
 import {GUIDE, PHOTO_W, PHOTO_H} from '../data/guides.js';
 import {listPhotos, addPhoto, delPhoto} from '../photos.js';
@@ -30,19 +30,17 @@ const ytUrl = e => 'https://www.youtube.com/results?search_query=' + encodeURICo
 export function openTech(id) {
   const e = P.exOf(state.db, id), note = P.noteOf(state.db, id), eq = EQUIP[e.img];
   let urls = [];
-  const html = `<span class="grab"></span><div class="sc">
-  <h2>${esc(e.n)}</h2>${eq ? `<p class="eqn">${esc(eq.n)}</p>` : ''}
+  const html = `${sheetHead(esc(e.n), 'Техника', eq ? esc(eq.n) : '')}<div class="sc">
   ${guideSvg(id, e) ? `<div class="tb2"><h4>Настройка на твоём тренажёре</h4>${guideSvg(id, e)}</div>` : ''}
   ${!hasPhoto(e.img) && e.img !== 'mat' ? `<div class="note" style="margin:16px 0 0">Фото «${esc(eq ? eq.n : 'снаряда')}» из твоего зала пока нет. Сфоткай его кнопкой «Табличка» ниже — фото станет обложкой упражнения.</div>` : ''}
   ${e.setup ? `<div class="tb2"><p>${esc(e.setup)}</p></div>` : ''}
   <div class="tb2"><h4>Мои фото: старт и финиш</h4><div class="phs" id="myphs"></div>
-    <div class="g3"><button class="btn s2 sm" data-add="start">${ICON.cam}Старт</button><button class="btn s2 sm" data-add="end">${ICON.cam}Финиш</button><button class="btn s2 sm" data-add="plate">${ICON.cam}Табличка</button></div>
+    <div class="addph"><button data-add="start">${ICON.cam}Старт</button><button data-add="end">${ICON.cam}Финиш</button><button data-add="plate">${ICON.cam}Табличка</button></div>
     <p class="hint2">Попроси кого-нибудь в зале сфоткать тебя в начале и в конце движения — или сними инструкцию на самом тренажёре. Фото хранятся на телефоне и входят в резервную копию.</p></div>
   ${note ? `<div class="tb2"><h4>Мои заметки</h4><p>${esc(note)}</p></div>` : ''}
   ${e.how.length ? `<div class="tb2"><h4>Как делать</h4><ol class="steps">${e.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
   ${e.bad.length ? `<div class="tb2 bad"><h4>Частые ошибки</h4><ul class="bads">${e.bad.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-  <a class="btn s2" style="margin-top:22px" href="${ytUrl(e)}" target="_blank" rel="noopener">${ICON.play}Видео техники на YouTube</a>
-  <button class="btn" style="margin-top:10px" id="techclose">Понятно</button></div>`;
+  <a class="btn s2 yt" href="${ytUrl(e)}" target="_blank" rel="noopener">${ICON.play}Видео техники на YouTube</a></div>`;
   const drawPhotos = async () => {
     urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
     const box = document.querySelector('#sheet #myphs'); if (!box) return;
@@ -52,7 +50,6 @@ export function openTech(id) {
     box.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => viewPhoto(list.find(p => p.id === +b.dataset.ph), b.querySelector('img').src, drawPhotos));
   };
   openSheet(html, sh => {
-    sh.querySelector('#techclose').onclick = closeSheet;
     sh.querySelectorAll('[data-pin]').forEach(n => n.onclick = () => {const i = n.dataset.pin; sh.querySelectorAll('[data-pin]').forEach(m => m.classList.toggle('hl', m.dataset.pin === i));});
     sh.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => {
       const f = await pickFile('image/*');
@@ -82,14 +79,12 @@ export function openSwap(k, it, done) {
   if (it.orig && !list.includes(it.orig)) list.unshift(it.orig);
   const row = id => {
     const e = P.exOf(db, id), Ls = L.lastFor(db.sessions, id);
-    return `<button class="alt" data-to="${esc(id)}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t"><b>${esc(e.n)}${id === it.orig ? ' · по плану' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${e.knee ? ' · колени' : ''}</small><small>${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? x.a + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не делал'}</small></span></button>`;
+    return `<button class="alt" data-to="${esc(id)}">${hasPhoto(e.img) ? `<img src="img/${e.img}.jpg" alt="">` : '<span class="noph"></span>'}<span class="t">${e.g === 'core' && P.ROLE[e.cr] ? `<small class="role">${P.ROLE[e.cr]}</small>` : ''}<b>${esc(e.n)}${id === it.orig ? '<span class="tag">по плану</span>' : ''}</b><small>${esc(EQUIP[e.img]?.n || '')}${e.knee ? ' · колени' : ''}</small><small class="n">${Ls ? 'было ' + esc(Ls.e.map(x => e.t === 'w' ? fmtN(x.a) + '×' + x.b : x.b).join(', ')) + ' · ' + fmtD(Ls.date) : 'ещё не делал'}</small></span>${ICON.chev}</button>`;
   };
-  openSheet(`<span class="grab"></span><div class="sc"><h2>Заменить «${esc(cur.n)}»</h2>
+  openSheet(`${sheetHead(esc(cur.n), 'Замена')}<div class="sc">
     <p class="hint2">Тренажёр занят? Замена — на ту же группу мышц, только на оборудовании твоего зала.</p>
     <div class="alts">${list.length ? list.map(row).join('') : '<p class="empty">Замен для этого упражнения нет.</p>'}</div>
-    <label class="chk"><input type="checkbox" id="swperm"> Заменить в программе навсегда</label>
-    <button class="btn s2" style="margin-top:14px" id="swclose">Отмена</button></div>`, sh => {
-    sh.querySelector('#swclose').onclick = closeSheet;
+    <label class="chk"><input type="checkbox" id="swperm"> Заменить в программе навсегда</label></div>`, sh => {
     sh.querySelectorAll('[data-to]').forEach(b => b.onclick = () => {
       const to = b.dataset.to, rows = draft(k).ex[it.id] || [];
       if (rows.some(x => x.done) && !confirm('Отмеченные подходы по этому упражнению сбросятся. Заменить?')) return;
@@ -108,11 +103,11 @@ const STEPS = [1, 2, 2.5, 5, 10];
 export function openNote(id, done) {
   const db = state.db, e = P.exOf(db, id), cur = (db.exs || {})[id] || {note: '', step: null}, def = EQUIP[e.img]?.step || 2.5;
   let step = cur.step;
-  const chips = () => STEPS.map(s => `<button class="${(step || def) === s ? 'on' : ''}" data-s="${s}">${s} кг${s === def ? ' ·' : ''}</button>`).join('');
-  openSheet(`<span class="grab"></span><div class="sc"><h2>${esc(e.n)}</h2>
-    <div class="tb2"><h4>Заметка — видно на каждой тренировке</h4><textarea id="nt" maxlength="500" rows="4" placeholder="Например: сиденье 4, спинка на 2-й дырке, ноги повыше">${esc(cur.note)}</textarea></div>
+  const chips = () => STEPS.map(s => `<button class="${(step || def) === s ? 'on' : ''}" data-s="${s}">${fmtN(s)} кг${s === def ? ' ·' : ''}</button>`).join('');
+  openSheet(`${sheetHead(esc(e.n), 'Заметка')}<div class="sc">
+    <div class="tb2 first"><h4>Видно на каждой тренировке</h4><textarea id="nt" maxlength="500" rows="4" placeholder="Например: сиденье 4, спинка на 2-й дырке, ноги повыше">${esc(cur.note)}</textarea></div>
     ${e.t === 'w' ? `<div class="tb2"><h4>Шаг веса на этом тренажёре</h4><div class="chipsel" id="stp">${chips()}</div><p class="hint2">С таким шагом приложение повышает вес и двигает кнопки ±. Точкой отмечен шаг по умолчанию.</p></div>` : ''}
-    <button class="btn" style="margin-top:20px" id="ntsave">Сохранить</button></div>`, sh => {
+    <button class="btn" style="margin-top:24px" id="ntsave">Сохранить</button></div>`, sh => {
     const bindChips = () => sh.querySelectorAll('#stp [data-s]').forEach(b => b.onclick = () => {step = +b.dataset.s === def ? null : +b.dataset.s; sh.querySelector('#stp').innerHTML = chips(); bindChips();});
     bindChips();
     sh.querySelector('#ntsave').onclick = () => {

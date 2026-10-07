@@ -138,6 +138,17 @@ export function circuitNext(k, it) {
   return order.find(x => !exDone(k, x)) || null;
 }
 
+// Состояние круга. stations: [{rows:[{done}], skip}] в порядке программы.
+// round — 0-based текущий круг (= число полностью готовых кругов), cur — индекс станции, -1 если всё готово.
+export function circuitState(stations) {
+  const act = stations.map((s, i) => ({...s, i})).filter(s => !s.skip);
+  const rounds = act.length ? Math.max(...act.map(s => s.rows.length)) : 0;
+  const open = s => {const j = s.rows.findIndex(x => !x.done); return j < 0 ? Infinity : j;};
+  const round = act.length ? Math.min(...act.map(open)) : Infinity;
+  if (round === Infinity) return {rounds, round: rounds, cur: -1};
+  return {rounds, round, cur: act.find(s => s.rows[round] && !s.rows[round].done).i};
+}
+
 export function restFor(it, phase) {
   const e = P.exOf(state.db, it.id);
   if (e.g === 'cardio' || it.ss) return 0;

@@ -66,7 +66,7 @@ try {
   const s = await ev(`for (const card of [...document.querySelectorAll('#list .ex')].filter(c => c.dataset.slot !== '${t.slot}' && !c.classList.contains('inblk'))) {
       const slot = card.dataset.slot; card.querySelector('[data-act=swap]').click(); ${W(400)}
       const alt = document.querySelector('#sheet [data-to]');
-      if (!alt) {document.querySelector('#swclose').click(); ${W(200)} continue;}
+      if (!alt) {document.querySelector('#sheet [data-close]').click(); ${W(200)} continue;}
       const to = alt.dataset.to; alt.click(); ${W(400)}
       return {slot, to, swp: !!document.querySelector('#ex-' + CSS.escape(slot) + ' .swp')};
     }
@@ -76,7 +76,7 @@ try {
   console.log('Пресс кругом');
   const c = await ev(`const core = [...document.querySelectorAll('#list .ex.inblk')]; if (core.length !== 3) return {n: core.length};
     const first = core[0]; first.querySelector('.set.x [data-act=ck]').click(); ${W(700)}
-    return {n: 3, head: !!document.querySelector('.blkh'), timer: document.querySelector('#timer').classList.contains('on'), toast: document.querySelector('#toast').textContent};`);
+    return {n: 3, head: !!document.querySelector('.circ'), timer: document.querySelector('#timer').classList.contains('on'), toast: document.querySelector('#toast').textContent};`);
   ok(c.n === 3 && c.head, 'блок пресса из 3 упражнений с заголовком');
   ok(!c.timer && /без отдыха/.test(c.toast), 'внутри круга без отдыха, подсказка куда дальше');
 
