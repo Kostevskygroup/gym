@@ -15,30 +15,42 @@ const crank = c => [
 ];
 
 // ---- вертикальный велотренажёр (как в зале: две опоры, толстая рама, руль-рога у консоли) ----
-const UC = [200, 186], UFT = 100, UHIP = [178, 120];
-const UPRIGHT = [
-  {k: 'rect', x: 128, y: 204, w: 64, h: 10, r: 5, c: 'steel'},        // задняя опора
-  {k: 'rect', x: 238, y: 204, w: 56, h: 10, r: 5, c: 'steel'},        // передняя опора
-  {k: 'line', p: [[164, 206], [177, 142]], w: 13, c: 'steel'},        // подседельная колонна
-  {k: 'line', p: [[177, 144], [177, 136]], w: 6, c: 'hi'},            // регулируемый штырь
-  {k: 'pad', x: 150, y: 130, w: 44, h: 8},                            // седло
-  {k: 'line', p: [[170, 192], [200, 186], [264, 207]], w: 10, c: 'steel'}, // нижняя рама
-  {k: 'line', p: [[204, 180], [252, 86]], w: 10, c: 'steel'},         // стойка консоли
-  {k: 'line', p: [[241, 108], [228, 113]], w: 5, c: 'hi'},            // руль: задний хват
-  {k: 'line', p: [[241, 108], [258, 107], [264, 99]], w: 5, c: 'hi'}, // руль: рога
-  {k: 'rect', x: 236, y: 70, w: 36, h: 12, r: 3, c: 'dark', rot: -32, ox: 254, oy: 76}, // консоль
-  {k: 'rect', x: 240, y: 69, w: 28, h: 3, r: 1.5, c: 'hi', rot: -32, ox: 254, oy: 76},
-  ...crank(UC),
+// ось шатунов поднята: нижняя педаль висит над полом в просвете между опорами
+// UFT — стопа на нижней педали (ровно), UTOP — на верхней (носок чуть вниз, без «провала» пятки)
+const UC = [200, 178], UFT = 100, UTOP = 115, UHIP = [178, 112];
+// педаль — планка под подошвой (сдвиг от оси стопы вниз, подходит углам стопы UFT и UTOP)
+const PD = [[-1.2, 6.9], [-1.5, 8.9]], pedal = (s, z, pd = PD) => pd.map(d => ({k: 'bar', a: {p: 'an' + s, d}, b: {p: 'to' + s, d}, ext: -2, plates: false, z}));
+// нижняя рама, маховик и дальний шатун — под дальней ногой (иначе её голень внизу не видна), ближний шатун — под ближней стопой
+const UCRANK = [
+  {k: 'line', p: [[168, 184], [200, 178], [264, 207]], w: 10, c: 'steel', z: 0}, // нижняя рама
+  {k: 'circ', x: UC[0], y: UC[1], r: 15, c: 'steel', z: 0}, {k: 'circ', x: UC[0], y: UC[1], r: 12, c: 'plate', z: 0},
+  {k: 'lever', from: UC, to: 'ft2', w: 5, z: 0}, ...pedal('2', 0),
+  {k: 'lever', from: UC, to: 'ft', w: 5, z: 5}, ...pedal('', 5),
 ];
-const UFIT = [[128, 214], [294, 214], [272, 58]];
+const UPRIGHT = [
+  {k: 'rect', x: 122, y: 204, w: 58, h: 10, r: 5, c: 'steel'},        // задняя опора (кончается до нижней педали)
+  {k: 'rect', x: 238, y: 204, w: 56, h: 10, r: 5, c: 'steel'},        // передняя опора
+  {k: 'line', p: [[164, 206], [177, 134]], w: 13, c: 'steel'},        // подседельная колонна
+  {k: 'line', p: [[177, 136], [177, 128]], w: 6, c: 'hi'},            // регулируемый штырь
+  {k: 'pad', x: 150, y: 122, w: 44, h: 8},                            // седло
+  {k: 'line', p: [[204, 172], [252, 78]], w: 10, c: 'steel'},         // стойка консоли
+  {k: 'line', p: [[241, 100], [228, 105]], w: 5, c: 'hi'},            // руль: задний хват
+  {k: 'line', p: [[241, 100], [258, 99], [264, 91]], w: 5, c: 'hi'},  // руль: рога
+  {k: 'rect', x: 236, y: 62, w: 36, h: 12, r: 3, c: 'dark', rot: -32, ox: 254, oy: 68}, // консоль
+  {k: 'rect', x: 240, y: 61, w: 28, h: 3, r: 1.5, c: 'hi', rot: -32, ox: 254, oy: 68},
+  ...UCRANK,
+];
+const UFIT = [[122, 214], [294, 214], [272, 50]];
 // посадка: t — наклон корпуса, hd — голова, hand — хват
 const upright = o => ({tempo: 'fast', m: ['quads', 'glutes', 'calves'], s: UPRIGHT, fit: UFIT, la: 'Правая вниз', lb: 'Левая вниз',
-  a: ride(UHIP, o.t, o.hd, UC, UFT, 180, o.hand), b: ride(UHIP, o.t, o.hd, UC, UFT, 360, o.hand)});
+  a: ride(UHIP, o.t, o.hd, UC, UFT, 180, o.hand, UTOP), b: ride(UHIP, o.t, o.hd, UC, UTOP, 360, o.hand, UFT)});
 
 // ---- горизонтальный (со спинкой): низкое сиденье, педали впереди чуть ниже таза ----
 // стопа на педали: в дальней точке носок чуть вытянут (RF), в ближней — ровнее (RN); щиколотка 80–115°
 // RX — направление от таза к центру круга щиколотки: в дальней точке нога почти прямая (колено ~28°)
 const RC = [209, 164], RF = 50, RN = 75, RHIP = [140, 150], RT = -24;
+// педали-планки под подошвами (сдвиг подходит обоим углам стопы RF и RN)
+const RPD = [[3, 6], [4, 7.8]];
 const RX = Math.atan2(ankC(RC, RF)[0] - RHIP[0], RHIP[1] - ankC(RC, RF)[1]) * 180 / Math.PI;
 const RECUMBENT = [
   {k: 'rect', x: 96, y: 204, w: 62, h: 10, r: 5, c: 'steel'},         // задняя опора
@@ -53,18 +65,18 @@ const RECUMBENT = [
   {k: 'pad', x: 118, y: 160, w: 52, h: 10},                           // сиденье
   {k: 'pad', x: 62, y: 156, w: 66, h: 11, rot: 66, ox: 128, oy: 156}, // спинка вдоль спины
   {k: 'line', p: [[144, 174], [151, 159]], w: 5, c: 'hi', z: 6}, {k: 'handle', at: 'hn', z: 8}, // боковая ручка у сиденья
-  ...crank(RC),
+  ...crank(RC), ...pedal('2', 1, RPD), ...pedal('', 5, RPD),
 ];
 const RFIT = [[96, 214], [282, 214]];
 const recumbent = o => ({tempo: 'fast', m: ['quads', 'glutes'], s: RECUMBENT, fit: RFIT, la: 'Правая вперёд', lb: 'Левая вперёд',
   a: ride(RHIP, RT, o.hd, RC, RF, RX, o.hand, RN), b: ride(RHIP, RT, o.hd, RC, RN, RX + 180, o.hand, RF)});
 
 export const M = {
-  bike: upright({t: 22, hd: -14, hand: [236, 110]}),
-  bike_zone2: upright({t: 14, hd: -8, hand: [230, 112.2]}),
-  bike_pyramid: upright({t: 26, hd: -16, hand: [246, 107.7]}),
-  bike_intervals: upright({t: 30, hd: -20, hand: [252, 107.4]}),
-  bike_tabata: upright({t: 34, hd: -24, hand: [261.5, 102.3]}),
+  bike: upright({t: 22, hd: -14, hand: [236, 102]}),
+  bike_zone2: upright({t: 14, hd: -8, hand: [230, 104.2]}),
+  bike_pyramid: upright({t: 26, hd: -16, hand: [246, 99.7]}),
+  bike_intervals: upright({t: 30, hd: -20, hand: [252, 99.4]}),
+  bike_tabata: upright({t: 34, hd: -24, hand: [261.5, 94.3]}),
   recumbent_bike: recumbent({hd: 14, hand: [151.5, 157]}),
   recumbent_intervals: recumbent({hd: 10, hand: [151.5, 157]}),
 };
