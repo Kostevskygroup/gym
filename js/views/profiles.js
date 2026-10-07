@@ -1,7 +1,7 @@
 // Профиль: облако и приглашения, программа и суставы, имя; несколько человек на одном телефоне — за «Ещё».
 import {toast, openSheet, closeSheet, sheetHead, CK, ICON, textForm, pwInput, bindPw, showErr, clearErr} from '../ui.js';
 import {state, profiles, activeProfile, switchProfile, renameProfile, deleteProfile, updDB} from '../store.js';
-import {esc, fmtD, ago, DAY, loginFrom} from '../format.js';
+import {esc, fmtD, ago, DAY, loginFrom, isInviteCode} from '../format.js';
 import * as SY from '../sync.js';
 import {JOINTS} from '../data/exercises.js';
 import {openWizard} from './wizard.js';
@@ -34,7 +34,7 @@ function cloudHtml(me) {
       <label>Логин (латиницей)<input id="cname" class="inp" autocomplete="username" autocapitalize="none" value="${esc(loginFrom(me.name === 'Я' ? '' : me.name))}" placeholder="например: slava"><small>${LOGIN_HINT}</small></label>
       <label>Пароль${pwInput('cpass', isNew ? 'new-password' : 'current-password', isNew ? 'минимум 6 символов' : '')}${isNew ? `<small>${PASS_HINT}</small>` : ''}</label>
       ${isNew ? `<label>Повтори пароль${pwInput('cpass2', 'new-password')}</label>
-      <label>Код приглашения<input id="cinv" class="inp" autocapitalize="characters" autocomplete="off" value="${esc(SY.pendingInvite())}" placeholder="ZAL-XXXX-XXXX"><small>Код даёт тот, кто тебя пригласил — он в сообщении со ссылкой.</small></label>` : ''}
+      <label>Код приглашения<input id="cinv" class="inp" autocapitalize="characters" autocomplete="off" value="${esc(SY.pendingInvite())}" placeholder="ZAL-…"><small>Код даёт тот, кто тебя пригласил — он в сообщении со ссылкой.</small></label>` : ''}
     </div>
     <p class="ferr" id="cerr"></p>
     <button class="btn" id="cgo">${isNew ? 'Создать и включить' : 'Войти'}</button>
@@ -142,6 +142,7 @@ export function openProfiles(after) {
     if (go) go.onclick = async () => {
       const name = sh.querySelector('#cname').value, pass = sh.querySelector('#cpass').value, inv = sh.querySelector('#cinv'), p2 = sh.querySelector('#cpass2');
       if (cmode === 'new') {
+        if (inv && !isInviteCode(inv.value)) {showErr(sh, inv.value.trim() ? 'Код не похож на код приглашения (ZAL-…) — проверь его в сообщении' : 'Введи код приглашения'); inv.closest('label').classList.add('bad'); return;}
         if (pass.length < MIN_PASS) {showErr(sh, 'Пароль короче 6 символов'); sh.querySelector('#cpass').closest('label').classList.add('bad'); return;}
         if (p2 && pass !== p2.value) {showErr(sh, 'Пароли не совпадают'); p2.closest('label').classList.add('bad'); return;}
       }

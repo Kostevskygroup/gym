@@ -41,9 +41,16 @@ try {
   await open();
   ok(await ev(`return !!document.querySelector('#welcome')`), 'на новом телефоне — экран приветствия');
   const fr = await ev(`document.querySelector('#wstart').click(); ${W(500)} document.querySelector('#wname').value = 'Тест'; document.querySelector('#wpain [data-k=knee]').click(); document.querySelector('#wgo').click(); ${W(900)}
-    const cloud = document.querySelector('#sheet h2')?.textContent; document.querySelector('#cskip').click(); ${W(600)}
+    const cloud = document.querySelector('#sheet h2')?.textContent;
+    const q = s => document.querySelector(s), go = q('#cgo'), err = () => q('#cerr').textContent;
+    const enabled = !go.disabled; q('#cinv').value = 'abc'; go.click(); const bad = err();
+    q('#cinv').value = ' zal\u2014ab2c-de3f-gh4k '; q('#cinv').dispatchEvent(new Event('blur')); const cleaned = q('#cinv').value;
+    q('#cpass').value = 'secret1'; q('#cpass2').value = 'secret2'; go.click(); const mism = err();
+    q('#cskip').click(); ${W(600)}
     const db = JSON.parse(localStorage.getItem('gym.db'));
-    return {cloud, name: db.settings.name, onboarded: db.settings.onboarded, pain: db.settings.pain, plan: !!db.plan, home: !!document.querySelector('#v-home .hero')};`);
+    return {cloud, enabled, bad, cleaned, mism, name: db.settings.name, onboarded: db.settings.onboarded, pain: db.settings.pain, plan: !!db.plan, home: !!document.querySelector('#v-home .hero')};`);
+  ok(fr.enabled && /не похож/.test(fr.bad), 'облако: кнопка нажимается без кода, неверный код объяснён текстом');
+  ok(fr.cleaned === 'ZAL-AB2C-DE3F-GH4K' && /не совпадают/.test(fr.mism), 'облако: мастер-код из трёх групп принят и приведён к виду ZAL-…');
   ok(fr.cloud === 'Облако' && fr.name === 'Тест' && fr.onboarded && fr.plan && fr.home, `анкета → облако (пропущено) → главный экран${fr.home ? '' : ' (нет главного)'}`);
   await open();
   ok(await ev(`return !document.querySelector('#welcome') && document.querySelector('#v-home').innerHTML.length > 500`), 'после перезапуска приветствие не повторяется');

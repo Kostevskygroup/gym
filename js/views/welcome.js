@@ -1,7 +1,7 @@
 // Первый запуск на новом телефоне: на iPhone в Safari — сначала установка; дальше анкета → облако (→ установка, если ещё в Safari).
 import {$, toast, openSheet, closeSheet, sheetHead, pwInput, bindPw, showErr, clearErr} from '../ui.js';
 import {state, profiles, renameProfile, updDB} from '../store.js';
-import {esc, plural, loginFrom} from '../format.js';
+import {esc, plural, loginFrom, cleanInvite, isInviteCode} from '../format.js';
 import * as SY from '../sync.js';
 import {planOf} from '../program.js';
 import {openWizard} from './wizard.js';
@@ -52,16 +52,14 @@ export function bindWelcome(go) {
 
 const LOGIN_HINT = 'Можно поменять. Это вход, не имя';
 const PASS_HINT = 'Сохрани его в Заметки или в связку ключей iPhone — восстановить пароль нельзя';
-const INVITE_RE = /^ZAL-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-const cleanCode = v => String(v || '').trim().toUpperCase();
 
 const loginField = name => `<label>Логин (латиницей)<input id="cname" class="inp" autocomplete="username" autocapitalize="none" value="${esc(loginFrom(name))}" placeholder="например: ksyusha"><small>${LOGIN_HINT}</small></label>`;
 const passFields = () => `<label>Пароль${pwInput('cpass', 'new-password', 'минимум 6 символов')}<small>${PASS_HINT}</small></label>
       <label>Повтори пароль${pwInput('cpass2', 'new-password')}</label>`;
-const codeField = (inv, first) => `<label>Код приглашения${first ? ' · обязателен' : ''}<input id="cinv" class="inp" autocapitalize="characters" autocomplete="off" value="${esc(inv)}" placeholder="ZAL-XXXX-XXXX"><small>${inv ? 'Код из сообщения со ссылкой — уже введён' : 'Код пришлёт тот, кто пригласил'}</small></label>`;
+const codeField = (inv, first) => `<label>Код приглашения${first ? ' · обязателен' : ''}<input id="cinv" class="inp" autocapitalize="characters" autocomplete="off" value="${esc(inv)}" placeholder="ZAL-…"><small>${inv ? 'Код из сообщения со ссылкой — уже введён' : 'Код пришлёт тот, кто пригласил'}</small></label>`;
 
 // Шаг «Облако»: подтверждает программу; с кодом из ссылки — регистрация, без кода — поле кода первым,
-// кнопка выключена, пока код не введён, а «Позже» — полноценная кнопка.
+// а «Позже» — полноценная кнопка. Кнопка всегда нажимается: что не так — пишем текстом у формы.
 // Закрытие любым способом ведёт дальше (установка или главный экран) — шаг нельзя потерять.
 function cloudStep(go) {
   const inv = SY.pendingInvite(), name = (state.db.settings && state.db.settings.name) || '';
@@ -71,17 +69,18 @@ function cloudStep(go) {
     <div class="tb2 first"><p><b>Программа готова:</b> ${days.length} ${plural(days.length, 'день', 'дня', 'дней')} в неделю — ${days.map(esc).join(', ')}. Включи облако, чтобы ничего не потерялось и всё было на любом телефоне.</p></div>
     <div class="form">${fields}</div>
     <p class="ferr" id="cerr"></p>
-    <button class="btn" id="cgo"${inv ? '' : ' disabled'}>Включить облако</button>
+    <button class="btn" id="cgo">Включить облако</button>
     <button class="${inv ? 'textbtn' : 'btn s2'}" id="cskip">Позже — пока только на этом телефоне</button></div>`, sh => {
     bindPw(sh);
     const code = sh.querySelector('#cinv'), b = sh.querySelector('#cgo');
-    const check = () => {if (!inv) b.disabled = !INVITE_RE.test(cleanCode(code.value));};
-    sh.querySelector('.form').oninput = () => {clearErr(sh); check();};
-    code.onblur = () => {code.value = cleanCode(code.value); check();};
+    sh.querySelector('.form').oninput = () => clearErr(sh);
+    code.onblur = () => {code.value = cleanInvite(code.value);};
     sh.querySelector('#cskip').onclick = () => closeSheet();
     b.onclick = async () => {
-      const p = sh.querySelector('#cpass').value, p2 = sh.querySelector('#cpass2').value, c = cleanCode(code.value);
-      if (!INVITE_RE.test(c)) {showErr(sh, 'Код выглядит как ZAL-XXXX-XXXX — проверь его в сообщении'); code.closest('label').classList.add('bad'); return;}
+      const p = sh.querySelector('#cpass').value, p2 = sh.querySelector('#cpass2').value, c = cleanInvite(code.value);
+      if (!c) {showErr(sh, 'Введи код приглашения'); code.closest('label').classList.add('bad'); return;}
+      if (!isInviteCode(c)) {showErr(sh, 'Код не похож на код приглашения (ZAL-…) — проверь его в сообщении'); code.closest('label').classList.add('bad'); return;}
+      if (sh.querySelector('#cname').value.trim().length < 2) {showErr(sh, 'Логин — минимум 2 символа'); sh.querySelector('#cname').closest('label').classList.add('bad'); return;}
       if (p.length < MIN_PASS) {showErr(sh, 'Пароль короче 6 символов'); sh.querySelector('#cpass').closest('label').classList.add('bad'); return;}
       if (p !== p2) {showErr(sh, 'Пароли не совпадают'); sh.querySelector('#cpass2').closest('label').classList.add('bad'); return;}
       b.disabled = true; b.textContent = 'Подключаю…';

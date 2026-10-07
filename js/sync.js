@@ -4,6 +4,7 @@ import {deriveAccount, importKey, seal, open} from './sync-crypto.js';
 import {state, setDB, activeProfile} from './store.js';
 import {normalizeDB, syncMerge} from './backup.js';
 import {allPhotos, importPhotos} from './photos.js';
+import {cleanInvite} from './format.js';
 
 const KEY = () => 'gym.sync@' + activeProfile(), PUSH_DELAY = 4000, MAX_TRIES = 3;
 const LS = {get: k => {try {return JSON.parse(localStorage.getItem(k));} catch (e) {return null;}}, set: (k, v) => {try {localStorage.setItem(k, JSON.stringify(v));} catch (e) {}}, del: k => {try {localStorage.removeItem(k);} catch (e) {}}};
@@ -45,7 +46,7 @@ export const errAction = err => /войди заново/.test(String(err || '')
 
 export async function register(name, password, invite) {
   const acc = await deriveAccount(name, password);
-  const {data} = await api('POST', '/v1/register', {userId: acc.userId, token: acc.token, invite: String(invite || '').trim()});
+  const {data} = await api('POST', '/v1/register', {userId: acc.userId, token: acc.token, invite: cleanInvite(invite)});
   LS.set(KEY(), {name: name.trim(), userId: acc.userId, token: acc.token, keyRaw: acc.keyRaw, admin: data.admin === true, version: 0, at: null, err: null});
   clearPendingInvite();
   // код из адреса больше не нужен — убираем его из строки только теперь (до этого он переживает установку на экран «Домой»)
@@ -65,7 +66,7 @@ export async function login(name, password) {
 // Код приглашения из ссылки (…/gym/?invite=ZAL-…) — запоминаем до регистрации.
 const PENDING = 'gym.pendingInvite';
 export const pendingInvite = () => {try {return localStorage.getItem(PENDING) || '';} catch (e) {return '';}};
-export const setPendingInvite = c => {try {localStorage.setItem(PENDING, String(c || '').trim().toUpperCase());} catch (e) {}};
+export const setPendingInvite = c => {try {localStorage.setItem(PENDING, cleanInvite(c));} catch (e) {}};
 export const clearPendingInvite = () => {try {localStorage.removeItem(PENDING);} catch (e) {}};
 // Владелец создаёт одноразовый код на 7 дней прямо с телефона.
 export async function createInvite() {

@@ -29,5 +29,17 @@ export const translit = s => String(s ?? '').toLowerCase().replace(/[а-яё]/g,
 // Логин по умолчанию из имени: латиница в нижнем регистре, без пробелов и лишних знаков.
 export const loginFrom = name => translit(name).replace(/[^a-z0-9._-]/g, '');
 
+// Код приглашения: ZAL-XXXX-XXXX (из приложения) или ZAL-XXXX-XXXX-XXXX (мастер-код владельца).
+// Чиним то, что делает клавиатура телефона: регистр, пробелы, длинные тире, русские буквы-двойники, «ЗАЛ».
+const LOOK = {А: 'A', В: 'B', С: 'C', Е: 'E', Н: 'H', К: 'K', М: 'M', О: 'O', Р: 'P', Т: 'T', Х: 'X', У: 'Y', З: '3'};
+const INVITE_BODY = /^ZAL([A-Z0-9]{4}){2,3}$/;
+export const cleanInvite = v => {
+  const s = String(v ?? '').trim().toUpperCase().replace(/^ЗАЛ/, 'ZAL').replace(/[А-ЯЁ]/g, c => LOOK[c] ?? c).replace(/[\u2010-\u2015\u2212]/g, '-');
+  const body = s.replace(/[\s-]/g, '');
+  // не похоже на ZAL-код — отдаём как ввели (только без краевых пробелов): пусть решает сервер
+  return INVITE_BODY.test(body) ? 'ZAL-' + body.slice(3).match(/.{4}/g).join('-') : String(v ?? '').trim();
+};
+export const isInviteCode = v => INVITE_BODY.test(cleanInvite(v).replace(/-/g, ''));
+
 // Дата в виде YYYY-MM-DD по местному времени — для имён файлов и сравнения дней.
 export const ymd = d => {const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;};
