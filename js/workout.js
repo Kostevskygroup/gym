@@ -58,7 +58,9 @@ export function markSet(k, it, idx, done, now = Date.now()) {
 // Пустое значение в отмеченном подходе не снимает ✓ — об этом предупредит «Завершить».
 export function editField(k, it, idx, f, v) {
   const rows = rowsFor(k, it);
-  const next = rows.map((r, j) => j !== idx ? r : {...r, [f]: v, [f === 'a' ? 'edA' : 'edB']: true});
+  // вес сразу повторяем в следующих подходах, которые ещё не отмечены и не правились руками
+  const follow = (r, j) => f === 'a' && j > idx && !r.done && !r.edA;
+  const next = rows.map((r, j) => j === idx ? {...r, [f]: v, [f === 'a' ? 'edA' : 'edB']: true} : follow(r, j) ? {...r, a: v} : r);
   setRows(k, it.id, next);
 }
 export function addSet(k, it) {const rows = rowsFor(k, it), l = rows[rows.length - 1] || {a: '', b: ''}; setRows(k, it.id, [...rows, {a: l.a, b: l.b, done: false}]);}

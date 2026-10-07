@@ -302,6 +302,29 @@ nav .ico.lv::after{content:'';position:absolute;top:0;right:-5px;width:8px;heigh
 .ex.all .set.c .si{background:transparent;color:var(--mu)}
 .ex.all .set.c .ck{background:transparent;box-shadow:none}
 .ex.all .set.c .ck svg{width:22px;height:22px;stroke:var(--ok)}
+/* таблица подходов: одинаковые строки — № · прошлый · кг · повт · ✓ */
+.seth.tbl,.set.tbl{grid-template-columns:28px minmax(0,1fr) 84px 72px 52px;column-gap:8px}
+.seth.tbl.nolast,.set.tbl.nolast{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 52px}
+.seth.tbl.one,.set.tbl.one{grid-template-columns:28px minmax(0,1fr) 96px 52px}
+.seth.tbl.one.nolast,.set.tbl.one.nolast{grid-template-columns:28px minmax(0,1fr) 52px}
+.seth.tbl{padding:12px 4px 4px}
+.seth.tbl span{display:block;padding:0;text-align:center}
+.seth.tbl:not(.nolast) span:nth-child(2){text-align:left;padding:0 4px}
+.set.tbl{min-height:60px;padding:6px 4px;margin:2px 0}
+.set.tbl.nx{background:rgba(245,200,66,.06);box-shadow:inset 0 0 0 1.5px rgba(245,200,66,.35)}
+.set.tbl .pv{padding:0 4px;font:500 var(--fs-15) var(--body);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set.tbl .cell{display:block;min-width:0}
+.set.tbl .cell input{width:100%;height:48px;padding:0 4px;border:0;border-radius:var(--r-md);background:var(--s2);text-align:center;color:var(--tx);font:700 var(--fs-20)/1 var(--disp)}
+.set.tbl .cell input.tgt{color:var(--acct)}
+.set.tbl .cell input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--acc);color:var(--acc)}
+.set.tbl .cell input::placeholder{color:var(--mu);font:500 var(--fs-15) var(--body)}
+.set.tbl .ck{width:52px;height:48px}
+.set.tbl.done .cell input{background:transparent;color:var(--tx2)}
+.set.tbl.wu{min-height:48px}
+.set.tbl.wu .wv{text-align:center;font:600 var(--fs-17)/1.2 var(--disp);color:var(--tx2)}
+.set.tbl.wu .pv{font-size:var(--fs-13)}
+.ex.all .set.tbl{min-height:44px;padding:2px 4px}
+.ex.all .set.tbl .cell input{height:36px;font-size:var(--fs-17)}
 
 /* колени и низ экрана */
 .kneec{margin-top:24px}

@@ -61,6 +61,17 @@ test('marking a set starts the session and copies weight only to untouched sets'
   assert.equal(WK.activeKey(), K);
 });
 
+test('typing a weight fills the later untouched, not-done sets at once (table shows the plan)', () => {
+  const it = item('legpress');
+  WK.editField(K, it, 2, 'a', 90);
+  WK.editField(K, it, 0, 'a', 100);
+  const rows = WK.rowsFor(K, it);
+  assert.equal(rows[0].a, 100);
+  assert.equal(rows[1].a, 100, 'untouched set 2 follows set 1');
+  assert.equal(rows[2].a, 90, 'hand-edited set 3 keeps its own weight');
+  assert.equal(rows[1].edA, undefined, 'a copied value does not count as hand-edited');
+});
+
 test('clearing a done set is never saved as 0 and is reported at finish', () => {
   const it = item('legpress');
   WK.editField(K, it, 0, 'a', 100);

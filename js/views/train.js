@@ -159,12 +159,22 @@ function renderCard(it, justK) {
   else if (e.t === 'w') h += `<div class="aimrow first"><span>Первый раз</span><b>${firstTimeTxt(it.r, RIR_N[db.phase] || RIR_N.p2)}</b></div>`;
   if (it.n) h += `<div class="note">${esc(it.n)}</div>`;
   const rm = ok >= 0 && rows[ok] && !rows[ok].done && rows.length > 1;
-  h += `<div class="sets">${warmHtml(k, it, e, rows)}${setHead(Ls)}${rows.map((x, j) => j === ok ? rowOpen(e, x, j, j === nx, j === justK, Ls) : rowShut(e, x, j, j === justK, Ls)).join('')}
+  h += `<div class="sets">${warmHtml(k, it, e, rows, Ls)}${setHead(e, Ls)}${rows.map((x, j) => rowTbl(e, x, j, j === ok && !x.done, j === justK, Ls)).join('')}
   ${setActs(e, rm, ok)}</div>`;
   el.innerHTML = h;
 }
 
-const setHead = Ls => `<div class="seth"><span></span><span><em>${Ls ? 'Прошлый · ' + fmtD(Ls.date) : ''}</em><em>Сегодня</em></span><span></span></div>`;
+// Подходы — таблица с одинаковыми строками: № · прошлый раз · кг · повт · ✓. Цифры вводятся прямо в ячейке,
+// текущий подход подсвечен; подсказанное (цель) — приглушённым золотом, пока его не тронули.
+const tblCls = (e, Ls) => `tbl${Ls ? '' : ' nolast'}${e.t === 'w' ? '' : ' one'}`;
+const setHead = (e, Ls) => `<div class="seth ${tblCls(e, Ls)}"><span>№</span>${Ls ? `<span title="${esc(fmtD(Ls.date))}">Прошлый</span>` : ''}${e.t === 'w' ? '<span>кг</span>' : ''}<span>${UNIT_S[e.t]}</span><span></span></div>`;
+function rowTbl(e, x, j, cur, just, Ls) {
+  const tg = f => !x.done && !(f === 'a' ? x.edA : x.edB) ? ' tgt' : '';
+  const cell = (f, val, mode, ph, unit) => `<label class="cell"><input class="n${tg(f)}" inputmode="${mode}" data-f="${f}" value="${esc(ruDec(val))}" placeholder="${ph}" aria-label="${unit}, подход ${j + 1}"></label>`;
+  return `<div class="set ${tblCls(e, Ls)} ${x.done ? 'done' : ''} ${cur ? 'nx' : ''} ${just ? 'just' : ''}" data-k="${j}"><span class="si">${j + 1}</span>
+  ${Ls ? `<span class="pv n">${prevStr(e, Ls, j) || '—'}</span>` : ''}${e.t === 'w' ? cell('a', x.a, 'decimal', 'вес', 'кг') : ''}${cell('b', x.b, 'numeric', '—', UNIT_S[e.t])}
+  <button class="ck" data-act="ck" aria-pressed="${x.done}" aria-label="Подход ${j + 1} ${x.done ? 'выполнен' : 'отметить'}">${CK}</button></div>`;
+}
 // «Возьми вес, с которым сделаешь 12 повторов и ещё 3 осталось бы в запасе…» — без тренерского жаргона.
 function firstTimeTxt(reps, rir) {
   const n = +(String(reps).match(/\d+/) || [10])[0];
@@ -177,14 +187,9 @@ function setActs(e, rm, ok) {
 }
 
 function setStr(t, e) {return e.map(x => t === 'w' ? `${fmtN(x.a)}×${x.b}` : `${x.b}${t === 't' ? ' с' : t === 'c' ? ' мин' : ''}`).join(', ');}
-const valStr = (e, x) => e.t === 'w' ? `${x.a === '' ? '—' : fmtN(x.a)} кг × ${x.b === '' ? '—' : x.b}` : `${x.b === '' ? '—' : x.b} ${e.t === 't' ? 'с' : e.t === 'c' ? 'мин' : 'повт'}`;
+const valStr = (e, x) => e.t === 'w' ? (x.a === '' ? `${x.b === '' ? '—' : x.b} повт` : `${fmtN(x.a)} кг × ${x.b === '' ? '—' : x.b}`) : `${x.b === '' ? '—' : x.b} ${e.t === 't' ? 'с' : e.t === 'c' ? 'мин' : 'повт'}`;
 const prevStr = (e, Ls, j) => {const p = Ls && (Ls.e[j] || null); return p ? (e.t === 'w' ? `${fmtN(p.a)}×${p.b}` : String(p.b)) : '';};
 
-function rowShut(e, x, j, just, Ls) {
-  return `<div class="set c ${x.done ? 'done' : ''} ${just ? 'just' : ''}" data-k="${j}"><span class="si">${j + 1}</span>
-  <button class="sv" data-act="open"><b class="n">${valStr(e, x)}</b><small class="n">${prevStr(e, Ls, j)}</small></button>
-  <button class="ck" data-act="${x.done ? 'open' : 'ck'}" aria-label="Подход ${j + 1} ${x.done ? 'выполнен' : 'отметить'}">${CK}</button></div>`;
-}
 function rowOpen(e, x, j, isNext, just, Ls, label = `подход ${j + 1}`) {
   const tg = f => !x.done && !(f === 'w' ? x.edA : x.edB) ? ' tgt' : '';
   const stp = (f, val, unit, mode, ph) => `<div class="stp"><button data-act="${f}m" aria-label="Меньше">−</button><label><input class="n${tg(f)}" inputmode="${mode}" data-f="${f === 'w' ? 'a' : 'b'}" value="${esc(ruDec(val))}" placeholder="${ph}" aria-label="${unit}, ${label}"><span>${unit}</span></label><button data-act="${f}p" aria-label="Больше">+</button></div>`;
@@ -195,15 +200,15 @@ function rowOpen(e, x, j, isNext, just, Ls, label = `подход ${j + 1}`) {
   <div class="side"><button class="ck big" data-act="ck" aria-pressed="${x.done}" aria-label="${label[0].toUpperCase() + label.slice(1)} выполнен">${CK}</button></div></div>`;
 }
 
-function warmHtml(k, it, e, rows) {
+function warmHtml(k, it, e, rows, Ls) {
   const sk = draft(k).skip, plan = L.warmPlan(WK.itemsFor(k).filter(x => !sk[x.id]), id => P.exOf(state.db, id));
   if (!plan[it.id]) return '';
   const w = +(rows[0] && rows[0].a) || 0, sets = L.warmups(w, P.stepOf(state.db, it.id), plan[it.id] === 'full', EQUIP[e.img]?.min || 0);
   if (!sets.length) return '';
   const done = draft(k).warm[it.id] || [];
   if (rows.some(x => x.done) && !done.some(Boolean)) return '';
-  return `<div class="seth wuh"><span></span><span>Разминка</span><span></span></div>` + sets.map((s, j) => `<div class="set c wu ${done[j] ? 'done' : ''}"><span class="si" aria-hidden="true"></span>
-    <span class="sv"><b class="n">${fmtN(s.a)} кг × ${s.b}</b></span>
+  return `<div class="seth wuh"><span></span><span>Разминка</span><span></span></div>` + sets.map((s, j) => `<div class="set ${tblCls(e, Ls)} wu ${done[j] ? 'done' : ''}"><span class="si" aria-hidden="true"></span>
+    ${Ls ? '<span class="pv"></span>' : ''}<span class="wv n">${fmtN(s.a)}</span><span class="wv n">${s.b}</span>
     <button class="ck" data-act="warm" data-w="${j}" aria-label="Разминка ${j + 1} ${done[j] ? 'выполнена' : 'отметить'}">${CK}</button></div>`).join('');
 }
 
@@ -264,6 +269,16 @@ function onInput(ev) {
   const v = String(inp.value).replace(',', '.').trim();
   WK.editField(WK.curKey(), it, j, inp.dataset.f, v === '' || isNaN(+v) ? '' : +v);
   inp.classList.remove('tgt');
+  if (inp.dataset.f === 'a') syncWeights(inp.closest('.sets'), it);
+}
+// вес из подхода повторился в следующих (workout.editField) — обновляем их ячейки, не трогая поле под пальцем
+function syncWeights(box, it) {
+  if (!box) return;
+  const rows = WK.rowsFor(WK.curKey(), it);
+  box.querySelectorAll('.set.tbl input[data-f=a]').forEach(i => {
+    const r = rows[+i.closest('.set').dataset.k];
+    if (r && i !== document.activeElement) i.value = ruDec(r.a);
+  });
 }
 
 function onTap(ev) {

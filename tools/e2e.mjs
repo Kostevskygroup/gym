@@ -59,14 +59,16 @@ try {
   console.log('Тренировка');
   const t = await ev(`document.querySelector('#gonow').click(); ${W(400)}
     const cards = document.querySelectorAll('#list .ex').length;
-    const card = [...document.querySelectorAll('#list .ex')].find(c => c.querySelector('.set.x input[data-f=a]'));
-    const slot = card.dataset.slot, inp = card.querySelector('.set.x input[data-f=a]');
+    const card = [...document.querySelectorAll('#list .ex')].find(c => c.querySelector('.set.nx input[data-f=a]'));
+    const slot = card.dataset.slot, inp = card.querySelector('.set.nx input[data-f=a]');
     inp.value = '40'; inp.dispatchEvent(new Event('input', {bubbles: true}));
-    card.querySelector('.set.x [data-act=ck]').click(); ${W(700)}
+    const follows = card.querySelector('.set[data-k="1"] input[data-f=a]')?.value;
+    card.querySelector('.set.nx [data-act=ck]').click(); ${W(700)}
     const d = JSON.parse(localStorage.getItem('gym.draft')), k = Object.keys(d).find(x => x.includes('|'));
-    return {cards, slot, k, done: d[k].ex[slot]?.[0]?.done, a: d[k].ex[slot]?.[0]?.a, timer: document.querySelector('#timer').classList.contains('on')};`);
+    return {cards, slot, k, follows, done: d[k].ex[slot]?.[0]?.done, a: d[k].ex[slot]?.[0]?.a, timer: document.querySelector('#timer').classList.contains('on')};`);
   ok(t.cards >= 6, `карточек упражнений: ${t.cards}`);
   ok(t.done === true && t.a === 40, 'подход с весом 40 сохранён');
+  ok(t.follows === '40', 'вес сразу повторился во втором подходе');
   ok(t.timer, 'таймер отдыха запущен');
 
   console.log('Перезапуск посреди тренировки');
