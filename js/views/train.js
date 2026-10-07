@@ -143,7 +143,8 @@ function renderCard(it, justK) {
   if (!el) return;
   const rows = WK.rowsFor(k, it), A = WK.aimFor(k, it), Ls = L.lastFor(db.sessions, it.id), skip = !!c.skip[it.id];
   const all = !skip && rows.every(x => x.done), nx = rows.findIndex(x => !x.done), ok = open[slot] ?? nx;
-  const tlab = e.t === 'c' ? esc(it.r) + ' мин' : e.t === 't' ? it.s + ' × ' + esc(it.r) + ' с' : it.s + ' × ' + esc(it.r) + ' повт';
+  const nSets = `${it.s} ${plural(it.s, 'подход', 'подхода', 'подходов')}`;
+  const tlab = e.t === 'c' ? esc(it.r) + ' мин' : e.t === 't' ? nSets + ' × ' + esc(it.r) + ' с' : nSets + ' × ' + esc(it.r) + ' повт';
   const best = Ls && e.t === 'w' ? L.bestSet('w', db.sessions.flatMap(s => s.entries[it.id] || [])) : null;
   const pic = photoFor(it.id, e), note = P.noteOf(db, it.id);
   el.className = 'ex' + (pic ? '' : ' noimg') + (all ? ' all' : '') + (skip ? ' skip' : '');
