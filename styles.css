@@ -51,7 +51,7 @@ main{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:calc(20px
 @keyframes pulse{50%{box-shadow:0 0 0 2px var(--bg),0 0 0 6px rgba(107,194,138,.25)}}
 
 /* общие иконки-линии */
-.tools svg,.prm svg,.iconbtn svg,.backup svg,.circ svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.addph svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg,.steps3 svg,.srch svg,.pw svg,.more summary svg,.tip .tx svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tools svg,.prm svg,.iconbtn svg,.backup svg,.circ svg,.alt svg,.bkl svg,.hist svg,.gl-row svg,.ptb svg,.hero svg,.sec svg,.mynote svg,.chips svg,.shd svg,.btn svg,.sm2 svg,.pa svg,.er button svg,.steps3 svg,.srch svg,.pw svg,.more summary svg,.tip .tx svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .pt{margin:4px 2px 16px}
 .pt small,.ptb{display:block;font:600 var(--fs-13)/1.35 var(--body);color:var(--mu);margin-bottom:4px}
@@ -497,18 +497,6 @@ ol.pins li.hl i{background:var(--ok)}
 .steps li{counter-increment:s}
 .steps li::before{content:counter(s);flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--s3);color:var(--tx2);font:800 var(--fs-13)/1 var(--disp)}
 .bads li::before{content:'✕';flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--badd);color:var(--bad);font:800 var(--fs-12)/1 var(--body)}
-.phs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
-.phs:empty{display:none}
-.ph{position:relative;aspect-ratio:3/4;border-radius:var(--r-md);overflow:hidden;background:var(--s2)}
-.ph img{width:100%;height:100%;object-fit:cover;display:block}
-.ph span{position:absolute;left:6px;bottom:6px;padding:2px 7px;border-radius:7px;background:rgba(13,26,22,.8);font:600 var(--fs-11)/1.3 var(--body)}
-.addph{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.addph button{height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:var(--r-md);box-shadow:inset 0 0 0 1.5px var(--line-strong);background:transparent;color:var(--tx2);font:600 var(--fs-13) var(--body)}
-.addph button svg{width:22px;height:22px;stroke:var(--tx2)}
-#photov{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;background:#000}
-#photov.on{display:flex}
-#photov img{flex:1;min-height:0;width:100%;object-fit:contain}
-.pvb{display:flex;gap:10px;justify-content:center;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
 /* замена */
 .alts{margin-top:12px;border-radius:var(--r-lg);background:var(--s1);overflow:hidden}
 .alt{position:relative;display:grid;grid-template-columns:48px 1fr 16px;gap:12px;align-items:center;width:100%;min-height:76px;padding:10px 12px;text-align:left;background:transparent;border-radius:0}

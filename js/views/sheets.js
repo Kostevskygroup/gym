@@ -1,5 +1,5 @@
 // Шторки: техника на фото твоего тренажёра, свои фото, замена, заметка и шаг веса.
-import {$, $$, toast, openSheet, closeSheet, ICON, sheetHead} from '../ui.js';
+import {toast, openSheet, closeSheet, ICON, sheetHead} from '../ui.js';
 import {state, draft, updDB} from '../store.js';
 import * as P from '../program.js';
 import * as L from '../logic.js';
@@ -7,13 +7,9 @@ import * as WK from '../workout.js';
 import {esc, fmtD, fmtN} from '../format.js';
 import {EQUIP, hasPhoto} from '../data/equipment.js';
 import {GUIDE, PHOTO_W, PHOTO_H, guideFor} from '../data/guides.js';
-import {listPhotos, addPhoto, delPhoto} from '../photos.js';
-import {pickFile} from '../platform.js';
-import {refreshCovers} from './covers.js';
 import {moveHtml} from '../anim/player.js';
 
 const PIN_R = 24;
-const LABELS = {start: 'Старт', end: 'Финиш', plate: 'Табличка', '': 'Фото'};
 
 function guideSvg(id, e) {
   const g = guideFor(id, e.img);
@@ -30,50 +26,19 @@ const ytUrl = e => 'https://www.youtube.com/results?search_query=' + encodeURICo
 
 export function openTech(id) {
   const e = P.exOf(state.db, id), note = P.noteOf(state.db, id), eq = EQUIP[e.img];
-  let urls = [];
   const mv = moveHtml(id, e);
   const html = `${sheetHead(esc(e.n), 'Техника', eq ? esc(eq.n) : '')}<div class="sc">
   ${mv ? `<div class="tb2"><h4>Как делать — картинками</h4>${mv}</div>` : ''}
   ${guideSvg(id, e) ? `<div class="tb2"><h4>Настройка на твоём тренажёре</h4>${guideSvg(id, e)}</div>` : ''}
-  ${!hasPhoto(e.img) && e.img !== 'mat' ? `<div class="note" style="margin:16px 0 0">Фото «${esc(eq ? eq.n : 'снаряда')}» из твоего зала пока нет. Сфоткай его кнопкой «Табличка» ниже — фото станет обложкой упражнения.</div>` : ''}
   ${e.setup ? `<div class="tb2"><p>${esc(e.setup)}</p></div>` : ''}
   ${e.knee && WK.kneeTracked() ? '<div class="tb2"><p>Нагружает колени — если болят выше 3, не повышай вес.</p></div>' : ''}
-  <div class="tb2"><h4>Мои фото: старт и финиш</h4><div class="phs" id="myphs"></div>
-    <div class="addph"><button data-add="start">${ICON.cam}Старт</button><button data-add="end">${ICON.cam}Финиш</button><button data-add="plate">${ICON.cam}Табличка</button></div>
-    <p class="hint2">Попроси кого-нибудь в зале сфоткать тебя в начале и в конце движения — или сними инструкцию на самом тренажёре. Фото хранятся на телефоне и входят в резервную копию.</p></div>
   ${note ? `<div class="tb2"><h4>Мои заметки</h4><p>${esc(note)}</p></div>` : ''}
   ${e.how.length ? `<div class="tb2"><h4>Как делать</h4><ol class="steps">${e.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
   ${e.bad.length ? `<div class="tb2 bad"><h4>Частые ошибки</h4><ul class="bads">${e.bad.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
   <a class="btn s2 yt" href="${ytUrl(e)}" target="_blank" rel="noopener">${ICON.play}Видео техники на YouTube</a></div>`;
-  const drawPhotos = async () => {
-    urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
-    const box = document.querySelector('#sheet #myphs'); if (!box) return;
-    let list = [];
-    try {list = await listPhotos(id);} catch (err) {box.innerHTML = '<p class="hint2">Фото недоступны в этом браузере.</p>'; return;}
-    box.innerHTML = list.length ? list.map(p => {const u = URL.createObjectURL(p.blob); urls.push(u); return `<button class="ph" data-ph="${p.id}"><img src="${u}" alt="${esc(LABELS[p.label] || 'Фото')}"><span>${esc(LABELS[p.label] || 'Фото')}</span></button>`;}).join('') : '';
-    box.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => viewPhoto(list.find(p => p.id === +b.dataset.ph), b.querySelector('img').src, drawPhotos));
-  };
   openSheet(html, sh => {
     sh.querySelectorAll('[data-pin]').forEach(n => n.onclick = () => {const i = n.dataset.pin; sh.querySelectorAll('[data-pin]').forEach(m => m.classList.toggle('hl', m.dataset.pin === i));});
-    sh.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => {
-      const f = await pickFile('image/*');
-      if (!f) return;
-      try {await addPhoto(id, f, b.dataset.add); await refreshCovers(); drawPhotos(); toast('Фото сохранено');} catch (err) {console.error(err); toast(err.message || 'Не получилось сохранить фото');}
-    });
-    drawPhotos();
-  }, () => urls.forEach(u => URL.revokeObjectURL(u)));
-}
-
-function viewPhoto(p, src, after) {
-  const v = $('#photov');
-  v.innerHTML = `<img src="${src}" alt=""><div class="pvb"><button class="btn s2 sm" id="pvdel">Удалить</button><button class="btn sm" id="pvclose">Закрыть</button></div>`;
-  v.classList.add('on');
-  $('#pvclose').onclick = () => v.classList.remove('on');
-  $('#pvdel').onclick = async () => {
-    if (!confirm('Удалить это фото?')) return;
-    await delPhoto(p.id); await refreshCovers();
-    v.classList.remove('on'); after(); toast('Фото удалено');
-  };
+  });
 }
 
 // Порядок: «по плану» → что уже делали → без нагрузки на отмеченные суставы → остальные.
