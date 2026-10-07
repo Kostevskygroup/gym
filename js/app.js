@@ -13,6 +13,7 @@ import {onFinishNav} from './views/finish.js';
 import {onPlanClose} from './views/plan.js';
 import {refreshCovers} from './views/covers.js';
 import {ymd} from './format.js';
+import {startAutoSync, syncNow} from './sync.js';
 import {stats, checkAch} from './stats.js';
 
 // Достижения по уже существующей истории (после переноса или восстановления) — без поздравлений.
@@ -28,6 +29,7 @@ function onProfile() {
   resumeRest();
   refreshCovers().then(() => {if (cur === 'train') renderTrain();});
   go('home');
+  syncNow().catch(() => {});
 }
 
 const VIEWS = {home: renderHome, train: renderTrain, prog: renderProg, body: renderBody};
@@ -74,6 +76,8 @@ function bindGlobal() {
   window.addEventListener('unhandledrejection', e => crash(e.reason));
   setInterval(() => {tickElapsed(); tickLive();}, 1000);
   addEventListener('gym:profile', onProfile);
+  // с другого телефона пришли новые данные — перерисовать экран (кроме идущей тренировки)
+  addEventListener('gym:remote', () => {if (cur !== 'train' && !sheetOpen()) go(cur);});
   addEventListener('gym:savefail', () => toast('Не сохранилось — на телефоне закончилось место. Сохрани копию в «Тело»'));
   onFinishNav(go);
   onPlanClose(() => {if (cur === 'train') renderTrain();});
@@ -94,6 +98,7 @@ function start() {
     go('train', true);
   } else go('home');
   refreshCovers().then(() => {if (cur === 'train') renderTrain();});
+  startAutoSync();
 }
 
 start();

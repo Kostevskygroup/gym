@@ -70,7 +70,7 @@ export function setDB(next) {
   const cur = LS.get(K.db);
   if (cur) LS.set(K.prev, cur);
   const ok = LS.set(K.db, JSON.stringify(cand));
-  if (ok) state.db = cand; else failed();
+  if (ok) {state.db = cand; try {dispatchEvent(new Event('gym:saved'));} catch (e) {}} else failed();
   state.saveFailed = !ok;
   return ok;
 }

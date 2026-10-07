@@ -192,3 +192,40 @@ test('normalizeDB keeps profile settings and dismissed recommendations', () => {
   assert.deepEqual(db.dismissed, {'plateau:lat': '2026-10-01T00:00:00Z'});
   assert.deepEqual(normalizeDB({}).settings, {name: '', knee: true});
 });
+
+import {syncMerge, tombstone} from '../js/backup.js';
+
+test('syncMerge unions workouts from two phones and keeps deletions deleted', () => {
+  const a = normalizeDB({sessions: [sess(1, '2026-10-01'), sess(2, '2026-10-02')], updatedAt: 10});
+  const b0 = normalizeDB({sessions: [sess(1, '2026-10-01'), sess(3, '2026-10-03')], updatedAt: 20});
+  const b = tombstone(b0, 'sessions', 1, new Date('2026-10-04'));
+  const m = syncMerge(a, b);
+  assert.deepEqual(m.sessions.map(s => s.id), [2, 3]);
+  assert.ok(m.tomb.sessions['1']);
+  assert.deepEqual(syncMerge(b, a).sessions.map(s => s.id), [2, 3]);
+});
+
+test('syncMerge: settings and plan come from the more recently edited side', () => {
+  const a = normalizeDB({goal: 90, phase: 'p1', settings: {name: 'Слава', knee: true}, updatedAt: 10});
+  const b = normalizeDB({goal: 85, phase: 'p2', settings: {name: 'Слава', knee: true}, updatedAt: 20});
+  const m = syncMerge(a, b);
+  assert.equal(m.goal, 85);
+  assert.equal(m.phase, 'p2');
+  assert.equal(m.updatedAt, 20);
+  assert.equal(syncMerge(b, a).goal, 85);
+});
+
+test('syncMerge keeps measurements from both and earliest achievement dates', () => {
+  const a = normalizeDB({bw: [{date: '2026-10-01T08:00:00Z', kg: 100}], ach: {first: '2026-09-02T00:00:00Z'}, updatedAt: 1});
+  const b = normalizeDB({bw: [{date: '2026-10-08T08:00:00Z', kg: 99}], ach: {first: '2026-09-01T00:00:00Z', w5: '2026-10-01T00:00:00Z'}, updatedAt: 2});
+  const m = syncMerge(a, b);
+  assert.equal(m.bw.length, 2);
+  assert.equal(m.ach.first, '2026-09-01T00:00:00Z');
+  assert.ok(m.ach.w5);
+});
+
+test('tombstones survive normalization', () => {
+  const db = tombstone(normalizeDB({sessions: [sess(5, '2026-10-01')]}), 'sessions', 5, new Date('2026-10-02'));
+  assert.equal(normalizeDB(JSON.parse(JSON.stringify(db))).tomb.sessions['5'], '2026-10-02T00:00:00.000Z');
+  assert.equal(normalizeDB(db).sessions.length, 0);
+});

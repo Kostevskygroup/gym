@@ -2,7 +2,7 @@
 import {$, $$, toast, openSheet, closeSheet, ICON, sheetHead} from '../ui.js';
 import {state, updDB, setDB, snapshot, undoSnapshot, rawExport, unlock, dropSnapshot} from '../store.js';
 import {stats, checkAch} from '../stats.js';
-import {parseBackup, mergeDB, makeBackup} from '../backup.js';
+import {parseBackup, mergeDB, makeBackup, tombstone, untomb} from '../backup.js';
 import {exportPhotos, importPhotos} from '../photos.js';
 import {saveFile, pickFile, persistStorage, pendingUpdate} from '../platform.js';
 import {esc, fmtD, fmtN, signed, NNBSP, r1, plural, ymd, num, DAY} from '../format.js';
@@ -86,9 +86,9 @@ function bind() {
     const [k, d] = b.dataset.bd.split('|');
     if (!confirm('Удалить этот замер?')) return;
     const removed = state.db[k].find(x => x.date === d);
-    updDB(db => ({...db, [k]: db[k].filter(x => x.date !== d)}));
+    updDB(db => tombstone(db, k, d));
     renderBody();
-    toast('Замер удалён', {label: 'Вернуть', run: () => {updDB(db => ({...db, [k]: [...db[k], removed].sort((a, b) => a.date.localeCompare(b.date))})); renderBody();}});
+    toast('Замер удалён', {label: 'Вернуть', run: () => {updDB(db => ({...untomb(db, k, d), [k]: [...db[k], removed].sort((a, b) => a.date.localeCompare(b.date))})); renderBody();}});
   });
 }
 

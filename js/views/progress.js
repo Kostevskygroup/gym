@@ -4,7 +4,7 @@ import {state, updDB} from '../store.js';
 import * as P from '../program.js';
 import * as L from '../logic.js';
 import {stats} from '../stats.js';
-import {normalizeDB} from '../backup.js';
+import {normalizeDB, tombstone, untomb} from '../backup.js';
 import {esc, fmtD, fmtN, ruDec, fmtVolT, plural, r1, ymd, num, UNIT} from '../format.js';
 import {chart} from './chart.js';
 
@@ -78,9 +78,9 @@ function bind() {
   $$('[data-del]').forEach(b => b.onclick = () => {
     const id = +b.dataset.del, s = state.db.sessions.find(x => x.id === id);
     if (!s || !confirm('Удалить эту тренировку?')) return;
-    updDB(d => ({...d, sessions: d.sessions.filter(x => x.id !== id)}));
+    updDB(d => tombstone(d, 'sessions', id));
     renderProg();
-    toast('Тренировка удалена', {label: 'Вернуть', run: () => {updDB(d => normalizeDB({...d, sessions: [...d.sessions, s]})); renderProg();}});
+    toast('Тренировка удалена', {label: 'Вернуть', run: () => {updDB(d => normalizeDB({...untomb(d, 'sessions', id), sessions: [...d.sessions, s]})); renderProg();}});
   });
   $$('[data-edit]').forEach(b => b.onclick = () => editSession(+b.dataset.edit));
 }

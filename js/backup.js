@@ -7,7 +7,7 @@ const PHASES = ['p1', 'p2', 'p3'];
 const TYPES = ['w', 'r', 't', 'c'];
 const STEPS = [0.5, 1, 1.25, 2, 2.5, 4, 5, 10];
 
-export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, settings: {name: '', knee: true}, dismissed: {}, updatedAt: 0});
+export const emptyDB = () => ({v: DB_V, sessions: [], bw: [], waist: [], goal: null, phase: 'p1', wo: 'А', ach: {}, plan: null, custom: {}, exs: {}, lastBackup: null, settings: {name: '', knee: true}, dismissed: {}, tomb: {sessions: {}, bw: {}, waist: {}}, updatedAt: 0});
 
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const okDate = d => typeof d === 'string' && Number.isFinite(Date.parse(d));
@@ -96,6 +96,10 @@ export function normalizeDB(raw) {
   db.lastBackup = okDate(d.lastBackup) ? d.lastBackup : null;
   if (obj(d.settings)) db.settings = {name: typeof d.settings.name === 'string' ? d.settings.name.trim().slice(0, 24) : '', knee: d.settings.knee !== false};
   if (obj(d.dismissed)) Object.entries(d.dismissed).forEach(([k, v]) => {if (okDate(v)) db.dismissed[k] = v;});
+  if (obj(d.tomb)) ['sessions', 'bw', 'waist'].forEach(k => {if (obj(d.tomb[k])) Object.entries(d.tomb[k]).forEach(([id, v]) => {if (okDate(v)) db.tomb[k][id] = v;});});
+  db.sessions = db.sessions.filter(s => !db.tomb.sessions[String(s.id)]);
+  db.bw = db.bw.filter(x => !db.tomb.bw[x.date]);
+  db.waist = db.waist.filter(x => !db.tomb.waist[x.date]);
   db.updatedAt = Number.isFinite(+d.updatedAt) ? +d.updatedAt : 0;
   return db;
 }
@@ -196,4 +200,35 @@ export function normalizeDR(raw) {
     else if (k.includes('|')) {const d = normDraft(v); if (d) out[k] = d;}
   });
   return out;
+}
+
+// ---- синхронизация между телефонами ----
+// Удаление оставляет «надгробие», чтобы запись не вернулась с другого телефона.
+export function tombstone(db, kind, key, now = new Date()) {
+  const k = String(key), keep = kind === 'sessions' ? x => String(x.id) !== k : x => x.date !== k;
+  return {...db, [kind]: db[kind].filter(keep), tomb: {...db.tomb, [kind]: {...db.tomb[kind], [k]: now.toISOString()}}};
+}
+export function untomb(db, kind, key) {
+  const {[String(key)]: _, ...rest} = db.tomb[kind];
+  return {...db, tomb: {...db.tomb, [kind]: rest}};
+}
+
+// Слияние копий с двух телефонов: записи объединяются (минус удалённые), настройки — с более свежей стороны.
+export function syncMerge(a, b) {
+  const newer = (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a, older = newer === a ? b : a;
+  const tomb = {};
+  ['sessions', 'bw', 'waist'].forEach(k => {tomb[k] = {...a.tomb[k], ...b.tomb[k]};});
+  const uniq = (xs, key) => {const m = new Map(); xs.forEach(x => {if (!m.has(key(x))) m.set(key(x), x);}); return [...m.values()];};
+  const sessions = uniq([...newer.sessions, ...older.sessions], s => s.id).filter(s => !tomb.sessions[String(s.id)]).sort(byDate);
+  const bw = uniq([...newer.bw, ...older.bw], x => x.date).filter(x => !tomb.bw[x.date]).sort(byDate);
+  const waist = uniq([...newer.waist, ...older.waist], x => x.date).filter(x => !tomb.waist[x.date]).sort(byDate);
+  const ach = {...older.ach};
+  Object.entries(newer.ach).forEach(([k, v]) => {if (!ach[k] || v < ach[k]) ach[k] = v;});
+  return {
+    ...newer, sessions, bw, waist, ach, tomb,
+    custom: {...older.custom, ...newer.custom},
+    dismissed: {...older.dismissed, ...newer.dismissed},
+    lastBackup: [a.lastBackup, b.lastBackup].filter(Boolean).sort().at(-1) || null,
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+  };
 }
