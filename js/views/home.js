@@ -10,6 +10,8 @@ import {esc, fmtD, fmtT, fmtVol, fmtN, ruDec, signed, NNBSP, r1, plural} from '.
 import {isIOS, isStandalone} from '../platform.js';
 import {hasPhoto} from '../data/equipment.js';
 import {saveStale} from './finish.js';
+import {coachHtml, bindCoach} from './coach.js';
+import {avatarHtml, openProfiles} from './profiles.js';
 
 const greet = () => {const h = new Date().getHours(); return h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';};
 function ringSvg(p) {const c = 2 * Math.PI * 42; return `<svg viewBox="0 0 104 104"><circle class="trk" cx="52" cy="52" r="42" fill="none" stroke-width="10"/><circle class="arc" cx="52" cy="52" r="42" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" data-to="${c * (1 - Math.min(1, p))}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg>`;}
@@ -37,7 +39,8 @@ export function renderHome(go) {
   const gap = L.gapDays(S, now), due = backupDue(db, now);
   const day = now.toLocaleDateString('ru-RU', {weekday: 'long', day: 'numeric', month: 'long'});
   const streak = st.streak >= 2 ? `${ICON.flame}${st.streak} ${plural(st.streak, 'неделя', 'недели', 'недель')} подряд` : `${S.length} ${plural(S.length, 'тренировка', 'тренировки', 'тренировок')}`;
-  let h = warnings() + `<div class="pt"><small>${greet()} · ${day}</small><h1>${S.length ? 'Неделя ' + wk : 'Старт'}</h1></div>
+  const who = db.settings && db.settings.name ? ', ' + esc(db.settings.name) : '';
+  let h = warnings() + `<div class="pt has-av"><small>${greet()}${who} · ${day}</small><h1>${S.length ? 'Неделя ' + wk : 'Старт'}</h1>${avatarHtml()}</div>
   <div class="card hero"><div class="l"><span class="eyebrow">Этап ${db.phase.slice(1)}</span><b class="ht">${esc(ph.label)}</b>
     <div class="bar${b ? ' wk' : ''}"${b ? ` style="--n:${b - a + 1}"` : ''}><i style="width:${pct * 100}%"></i></div>
     <div class="bl"><span>${b ? 'недели ' + a + '–' + b : 'с недели ' + a}</span><span>${streak}</span></div></div>
@@ -54,6 +57,7 @@ export function renderHome(go) {
   const est = Math.round(items.reduce((s, x) => s + (P.exOf(db, x.id).t === 'c' ? +x.r || 10 : x.s * 2.5), 0) / 5) * 5;
   h += `<div class="sec"><b>${S.length ? 'Следующая' : 'Первая тренировка'}</b></div>
   <div class="nextc">${heroEx && hasPhoto(P.exOf(db, heroEx.id).img) ? `<img src="img/${P.exOf(db, heroEx.id).img}.jpg" alt="">` : ''}<div class="k"><span>${items.length} ${plural(items.length, 'упражнение', 'упражнения', 'упражнений')}</span><span>≈ ${est} мин</span></div><h3>Тренировка ${esc(nw)}</h3><div class="chips">${chips(db, items)}</div><button class="btn" id="gonow">${ak && ak === WK.keyOf(db.phase, nw) ? 'Продолжить' : 'Начать тренировку'}</button></div>`;
+  h += coachHtml();
   if (due.due) h += `<button class="backup" id="gobackup"><span class="bi">${ICON.save}</span><span class="t"><b>Сохрани резервную копию</b><small>${due.n} ${plural(due.n, 'тренировка', 'тренировки', 'тренировок')} без копии</small></span>${ICON.chev}</button>`;
   const kn = st.knee;
   h += `<div class="sec"><b>Результаты</b></div><div class="g2">
@@ -99,6 +103,8 @@ function bind(go, nw, ak, rp) {
   const gk = $('#gobackup'); if (gk) gk.onclick = () => go('body', false, 'backup');
   const ss = $('#h-stsave'); if (ss) ss.onclick = () => saveStale(ak, () => renderHome(go));
   const sd = $('#h-stdrop'); if (sd) sd.onclick = () => {if (confirm('Удалить незавершённую тренировку?')) {dropDraft(ak); renderHome(go);}};
+  bindCoach(() => renderHome(go), go);
+  $('#profbtn').onclick = () => openProfiles(changed => changed ? dispatchEvent(new Event('gym:profile')) : renderHome(go));
 }
 
 export function tickLive() {

@@ -8,6 +8,8 @@ import {saveFile, pickFile, persistStorage, pendingUpdate} from '../platform.js'
 import {esc, fmtD, fmtN, signed, NNBSP, r1, plural, ymd, num, DAY} from '../format.js';
 import {chart} from './chart.js';
 
+// Имя профиля в названии файла: копии разных людей не перепутать.
+const fileTag = () => {const n = state.db.settings && state.db.settings.name; return n ? n.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 20) + '-' : '';};
 let key = 'kg', prepared = null, persisted = 'unknown';
 
 export function renderBody(focus) {
@@ -69,7 +71,7 @@ function bind() {
     if (!prepared) {toast('Готовлю копию… нажми ещё раз через секунду'); return;}
     if (prepared.failed && !confirm('Фото не удалось добавить в копию. Сохранить копию без фото?')) return;
     const failed = prepared.failed;
-    saveFile(`gym-backup-${ymd(new Date())}.json`, prepared.json).then(() => {updDB(d => ({...d, lastBackup: new Date().toISOString()})); renderBody(); toast(failed ? 'Копия сохранена без фото' : 'Копия сохранена');})
+    saveFile(`gym-backup-${fileTag()}${ymd(new Date())}.json`, prepared.json).then(() => {updDB(d => ({...d, lastBackup: new Date().toISOString()})); renderBody(); toast(failed ? 'Копия сохранена без фото' : 'Копия сохранена');})
       .catch(e => {if (e && e.name !== 'AbortError') {console.error(e); toast('Не получилось: ' + (e.message || e));}});
   };
   $('#bimp').onclick = async () => {const f = await pickFile('.json,application/json,text/plain'); if (f) restore(await f.text());};

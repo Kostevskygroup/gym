@@ -104,6 +104,18 @@ try {
   ok(p.hist === 2, 'история: 2 тренировки');
   ok(p.edit, 'правка тренировки открывается');
 
+  console.log('Профили');
+  const pr = await ev(`document.querySelector('nav [data-v=home]').click(); ${W(400)}
+    document.querySelector('#profbtn').click(); ${W(400)}
+    document.querySelector('#pname').value = 'Гость'; document.querySelector('#padd').click(); ${W(800)}
+    const guest = {name: document.querySelector('#v-home .pt small').textContent, hist: JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith('gym.db@'))) || '{"sessions":[]}').sessions.length};
+    document.querySelector('#profbtn').click(); ${W(400)}
+    document.querySelector('#sheet [data-pid="main"]').click(); ${W(800)}
+    const main = JSON.parse(localStorage.getItem('gym.db')).sessions.length;
+    return {guest, main, home: document.querySelector('#v-home').innerHTML.length > 500, kneeOff: true};`);
+  ok(/Гость/.test(pr.guest.name) && pr.guest.hist === 0, 'новый профиль «Гость» — пустой, со своим именем');
+  ok(pr.main === 2 && pr.home, 'вернулся к основному профилю — обе тренировки на месте');
+
   console.log('Без сети');
   const sw = await ev(`if (!navigator.serviceWorker) return false; await navigator.serviceWorker.ready; ${W(1500)} return (await caches.keys()).length > 0;`);
   ok(sw, 'офлайн-кэш установлен');

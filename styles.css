@@ -658,3 +658,24 @@ body.timing .toast{bottom:calc(180px + env(safe-area-inset-bottom) + var(--lift,
 #crash pre{max-height:30vh;overflow:auto;padding:10px;border-radius:var(--r-md);background:var(--s1);white-space:pre-wrap;font-size:var(--fs-12);color:var(--mu)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.badge circle.r,.badge path{stroke-dashoffset:0}}
+
+/* ===== Тренер и профили ===== */
+.pt.has-av{position:relative;padding-right:56px}
+.avatar{position:absolute;right:0;top:2px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--fill-2);box-shadow:inset 0 0 0 1px var(--line-strong);font:800 var(--fs-17)/1 var(--disp);color:var(--tx)}
+.avatar.sm{position:static;flex:none;width:36px;height:36px;font-size:var(--fs-15)}
+.gl-row.prof.on .avatar{background:var(--acc);color:var(--ink);box-shadow:none}
+.coach{display:flex;flex-direction:column;gap:12px}
+.tip{display:grid;grid-template-columns:36px 1fr;gap:12px;padding:16px;border-radius:var(--r-lg);background:var(--card);box-shadow:var(--edge)}
+.tip .ti{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--fill-2)}
+.tip .ti svg{width:20px;height:20px;fill:none;stroke:var(--tx2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tip.warn .ti{background:var(--badd)}.tip.warn .ti svg{stroke:var(--bad)}
+.tip.good .ti{background:var(--ok-a)}.tip.good .ti svg{stroke:var(--ok)}
+.tip.info .ti{background:var(--acc-a)}.tip.info .ti svg{stroke:var(--acc)}
+.tip b{display:block;font:700 var(--fs-17)/1.3 var(--body);color:var(--tx)}
+.tip p{margin-top:4px;font:400 var(--fs-15)/1.45 var(--body);color:var(--tx2)}
+.tip .ta{display:flex;align-items:center;gap:16px;margin-top:12px}
+.tip .ta:empty{display:none}
+.tip .btn.sm{width:auto;min-height:44px;padding:0 16px}
+.lnk{min-height:44px;padding:0 4px;font:600 var(--fs-15) var(--body);color:var(--mu)}
+.btn.danger{color:var(--bad)}
+.gl-row.prof{grid-template-columns:36px 1fr 24px;gap:12px}

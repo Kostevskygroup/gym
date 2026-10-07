@@ -1,6 +1,6 @@
 // Запуск приложения: загрузка данных, навигация, офлайн, защита от сбоев.
 import {$, $$, toast, closeSheet, sheetOpen} from './ui.js';
-import {state, load, storageWorks, rawExport, updDB} from './store.js';
+import {state, load, storageWorks, rawExport, updDB, setDB} from './store.js';
 import * as WK from './workout.js';
 import {registerSW, saveFile, pendingUpdate} from './platform.js';
 import {resumeRest, stopRest, adjust} from './timer.js';
@@ -13,6 +13,22 @@ import {onFinishNav} from './views/finish.js';
 import {onPlanClose} from './views/plan.js';
 import {refreshCovers} from './views/covers.js';
 import {ymd} from './format.js';
+import {stats, checkAch} from './stats.js';
+
+// Достижения по уже существующей истории (после переноса или восстановления) — без поздравлений.
+function backfillAch() {
+  const {ach, fresh} = checkAch(state.db.ach, stats(state.db));
+  if (fresh.length) setDB({...state.db, ach});
+}
+function onProfile() {
+  document.querySelector('#timer').classList.remove('on', 'over');
+  document.body.classList.remove('timing');
+  backfillAch();
+  updDot();
+  resumeRest();
+  refreshCovers().then(() => {if (cur === 'train') renderTrain();});
+  go('home');
+}
 
 const VIEWS = {home: renderHome, train: renderTrain, prog: renderProg, body: renderBody};
 let cur = 'home';
@@ -57,6 +73,7 @@ function bindGlobal() {
   window.addEventListener('error', e => crash(e.error || e.message));
   window.addEventListener('unhandledrejection', e => crash(e.reason));
   setInterval(() => {tickElapsed(); tickLive();}, 1000);
+  addEventListener('gym:profile', onProfile);
   addEventListener('gym:savefail', () => toast('Не сохранилось — на телефоне закончилось место. Сохрани копию в «Тело»'));
   onFinishNav(go);
   onPlanClose(() => {if (cur === 'train') renderTrain();});
@@ -67,6 +84,7 @@ function start() {
   bindGlobal();
   registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));
   try {load();} catch (e) {crash(e); return;}
+  backfillAch();
   updDot();
   resumeRest();
   const ak = WK.activeKey();

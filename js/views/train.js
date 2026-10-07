@@ -32,7 +32,7 @@ export function renderTrain() {
   <div class="session" id="session"></div>
   <div id="list">${listHtml(items)}</div>
   ${items.length ? '' : '<p class="empty">В этой тренировке нет упражнений — добавь их в «Программе».</p>'}
-  <div class="card kneec" id="kneec">${kneeHtml(c.knee)}</div>
+  ${WK.kneeTracked() ? `<div class="card kneec" id="kneec">${kneeHtml(c.knee)}</div>` : ''}
   <button class="btn" id="finish" style="margin-top:24px">Завершить тренировку</button>
   <button class="textbtn" id="reset">Сбросить отметки</button>`;
   $('#v-train').innerHTML = h;
@@ -67,7 +67,7 @@ function bindTrain(k, live) {
   $('#phbtn').onclick = () => openPhase(guard);
   $$('#wos [data-w]').forEach(b => b.onclick = () => {if (b.dataset.w === state.db.wo || !guard()) return; updDB(d => ({...d, wo: b.dataset.w})); renderTrain();});
   $('#goplan').onclick = () => import('./plan.js').then(m => m.openPlan(state.db.phase, state.db.wo));
-  $('#kneec').onclick = e => {
+  if ($('#kneec')) $('#kneec').onclick = e => {
     const b = e.target.closest('[data-v]');
     if (!b) return;
     WK.setKnee(k, +b.dataset.v);
