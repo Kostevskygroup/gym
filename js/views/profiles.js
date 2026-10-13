@@ -2,6 +2,7 @@
 import {toast, openSheet, closeSheet, sheetHead, CK, ICON, textForm, pwInput, bindPw, showErr, clearErr} from '../ui.js';
 import {state, profiles, activeProfile, switchProfile, renameProfile, deleteProfile, updDB} from '../store.js';
 import {esc, fmtD, ago, DAY, loginFrom, isInviteCode} from '../format.js';
+import {TEMPLATES} from '../data/templates.js';
 import * as SY from '../sync.js';
 import {JOINTS} from '../data/exercises.js';
 import {openWizard} from './wizard.js';
@@ -10,6 +11,11 @@ const MIN_PASS = 6, INVITE_DAYS = 7;
 const LOGIN_HINT = 'Можно поменять. Это вход, не имя';
 const PASS_HINT = 'Сохрани его в Заметки или в связку ключей iPhone — восстановить пароль нельзя';
 const INVITE_HINT = 'Код на 7 дней, один раз. Откроется «Поделиться».';
+// Какую программу получит приглашённый: соберёт сам в анкете или готовая из data/templates.js. Запоминается на телефоне.
+const PROG_KEY = 'gym.invProg';
+const invProg = () => {try {return localStorage.getItem(PROG_KEY) || '';} catch (e) {return '';}};
+const PROG_OPTS = () => ({'': 'Соберёт сам', ...Object.fromEntries(Object.entries(TEMPLATES).map(([k, t]) => [k, t.n]))});
+const progRow = () => `<div class="tb2"><h4>Программа для приглашённого</h4><div class="chipsel" id="cprog">${Object.entries(PROG_OPTS()).map(([k, v]) => `<button type="button" class="${invProg() === k ? 'on' : ''}" data-k="${esc(k)}">${esc(v)}</button>`).join('')}</div></div>`;
 let cmode = 'new';
 
 // Ошибка облака — человеческой фразой и с кнопкой: войти заново (ключ не подходит) или повторить (нет связи).
@@ -23,7 +29,7 @@ const cloudStatus = a => {
 function cloudHtml(me) {
   const a = SY.account();
   if (a) return `<div class="tb2"><h4>Облако</h4>
-    ${a.admin ? `<button class="btn" id="cinvite">${ICON.invite}Пригласить человека</button><p class="hint2">${INVITE_HINT}</p><div id="cinvlist"></div>` : ''}
+    ${a.admin ? `${progRow()}<button class="btn" id="cinvite">${ICON.invite}Пригласить человека</button><p class="hint2">${INVITE_HINT}</p><div id="cinvlist"></div>` : ''}
     ${cloudStatus(a)}
     <div class="g2"><button class="btn s2" id="csync">Синхронизировать</button><button class="btn s2" id="cout">Выйти из облака</button></div>
     <p class="hint2">Данные шифруются на телефоне и хранятся на сервере в Ирландии. На другом телефоне войди с тем же логином и паролем.</p></div>`;
@@ -45,8 +51,8 @@ const initial = n => esc((String(n || '?').trim()[0] || '?').toUpperCase());
 export const avatarHtml = () => {const p = profiles().find(x => x.id === activeProfile()); return `<button class="avatar" id="profbtn" aria-label="Профиль: ${esc(p.name)}">${initial(p.name)}</button>`;};
 
 // Отправить приглашение. Вызывать прямо из обработчика нажатия: iOS открывает «Поделиться» только по жесту.
-export function shareInvite(code) {
-  const text = SY.inviteText(code);
+export function shareInvite(code, prog = invProg()) {
+  const text = SY.inviteText(code, prog);
   if (navigator.share) return navigator.share({title: 'Мой зал', text}).then(() => toast('Приглашение отправлено'), e => {
     if (e && e.name === 'AbortError') return;
     toast(e && e.name === 'NotAllowedError' ? 'Не удалось открыть «Поделиться» — нажми «Отправить» рядом с кодом' : (e && e.message) || 'Не получилось отправить');
@@ -60,9 +66,10 @@ export async function inviteFlow(onList) {
   try {inv = await SY.createInvite();}
   catch (e) {console.error('invite', e); toast(SY.humanErr(e) || 'Не удалось создать код'); return null;}
   const exp = inv.exp || new Date(Date.now() + INVITE_DAYS * DAY).toISOString();
-  SY.rememberInvite({code: inv.code, exp});
+  const prog = invProg();
+  SY.rememberInvite({code: inv.code, exp, prog});
   if (onList) onList();
-  await shareInvite(inv.code);
+  await shareInvite(inv.code, prog);
   return inv.code;
 }
 
@@ -77,7 +84,7 @@ async function drawInvites(sh) {
   const box = sh.querySelector('#cinvlist'); if (!box) return;
   const render = rows => {
     box.innerHTML = rows.length ? `<div class="glist">${rows.map(invRow).join('')}</div>` : '';
-    box.querySelectorAll('[data-resend]').forEach(b => b.onclick = () => shareInvite(b.dataset.resend));
+    box.querySelectorAll('[data-resend]').forEach(b => b.onclick = () => shareInvite(b.dataset.resend, (SY.localInvites().find(i => i.code === b.dataset.resend) || {}).prog || ''));
   };
   const local = SY.localInvites();
   render(local.map(l => ({...l, full: l.code})));
@@ -156,6 +163,8 @@ export function openProfiles(after) {
     if (fix) fix.onclick = () => {if (confirm('Выйти из облака и войти заново? Данные на телефоне останутся.')) {SY.logout(); cmode = 'in'; draw(sh);}};
     const retry = sh.querySelector('#cretry');
     if (retry) retry.onclick = async () => {retry.disabled = true; try {await SY.syncNow(); toast('Синхронизировано');} catch (e) {toast(SY.humanErr(e));} draw(sh); after(false);};
+    const cp = sh.querySelector('#cprog');
+    if (cp) cp.onclick = e => {const b = e.target.closest('[data-k]'); if (!b) return; try {localStorage.setItem(PROG_KEY, b.dataset.k);} catch (err) {} cp.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));};
     const ci = sh.querySelector('#cinvite');
     if (ci) {
       ci.onclick = async () => {ci.disabled = true; try {await inviteFlow(() => drawInvites(sh));} finally {ci.disabled = false; drawInvites(sh);}};

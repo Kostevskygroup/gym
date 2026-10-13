@@ -20,6 +20,7 @@ export const EQUIP = {
   abbench: {n: 'Скамья для пресса', step: 1},
   bike: {n: 'Велотренажёр', step: 1},
   mat: {n: 'Коврик', step: 1, extra: 1},
+  pecfly: {n: 'Pec Fly («бабочка»)', step: 2.5, photo: false},
 };
 
 export const hasPhoto = eq => Object.prototype.hasOwnProperty.call(EQUIP, eq) && EQUIP[eq].photo !== false;

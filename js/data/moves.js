@@ -17,6 +17,7 @@ import {M as SMITH} from './moves/smith.js';
 import {M as SMITH2} from './moves/smith2.js';
 import {M as FLOOR} from './moves/floor.js';
 import {M as FLOOR2} from './moves/floor2.js';
+import {M as EXTRA} from './moves/extra.js';
 import {STAND, STAND_F, ANKLE_Y} from './moves/kit.js';
 
 // Башня кроссовера спереди, как tower() в cable4: колонна с кареткой-роликом (cx, py), стек снаружи (st −1 — слева),
@@ -125,7 +126,7 @@ const BASE = {
   },
 };
 
-export const MOVES = {...MACHINES, ...MACHINES2, ...BIKES, ...CABLE1, ...CABLE2, ...CABLE3, ...CABLE4, ...FREE, ...FREE2, ...BENCH, ...BENCH2, ...SMITH, ...SMITH2, ...FLOOR, ...FLOOR2, ...BASE};
+export const MOVES = {...MACHINES, ...MACHINES2, ...BIKES, ...CABLE1, ...CABLE2, ...CABLE3, ...CABLE4, ...FREE, ...FREE2, ...BENCH, ...BENCH2, ...SMITH, ...SMITH2, ...FLOOR, ...FLOOR2, ...EXTRA, ...BASE};
 
 // Движение для упражнения (с группой мышц из каталога) или null — тогда анимации нет.
 export const moveFor = (id, e) => MOVES[id] ? {g: e && e.g, ...MOVES[id]} : null;

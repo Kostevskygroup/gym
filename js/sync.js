@@ -82,13 +82,18 @@ export async function listInvites() {
   return data.invites || [];
 }
 export const appUrl = () => location.origin + location.pathname.replace(/[^/]*$/, '');
-export const inviteLink = code => `${appUrl()}?invite=${encodeURIComponent(code)}`;
+export const inviteLink = (code, prog) => `${appUrl()}?invite=${encodeURIComponent(code)}${prog ? '&prog=' + encodeURIComponent(prog) : ''}`;
+// Какую готовую программу дать приглашённому (ключ из data/templates.js): из ссылки …&prog=ksenia — до анкеты.
+const PPROG = 'gym.pendingProg';
+export const pendingProg = () => {try {return localStorage.getItem(PPROG) || '';} catch (e) {return '';}};
+export const setPendingProg = p => {try {if (/^[a-z0-9_]{1,24}$/.test(String(p || ''))) localStorage.setItem(PPROG, p);} catch (e) {}};
+export const clearPendingProg = () => {try {localStorage.removeItem(PPROG);} catch (e) {}};
 // Сообщение приглашённому: рабочая ссылка с кодом и код отдельной строкой (iOS может потерять ?invite= при установке).
-export const inviteText = code => `Привет! Ставлю тебе «Мой зал» — наше приложение для зала.\n\nОткрой в Safari: ${inviteLink(code)}\nОно само подскажет, как поставить иконку на экран «Домой», и соберёт программу под тебя.\n\nКод приглашения: ${code} — понадобится, когда приложение попросит включить облако. Действует 7 дней, один раз.`;
+export const inviteText = (code, prog) => `Привет! Ставлю тебе «Мой зал» — наше приложение для зала.\n\nОткрой в Safari: ${inviteLink(code, prog)}\nОно само подскажет, как поставить иконку на экран «Домой», и соберёт программу под тебя.\n\nКод приглашения: ${code} — понадобится, когда приложение попросит включить облако. Действует 7 дней, один раз.`;
 // Созданные с этого телефона коды целиком (сервер отдаёт их замаскированными) — чтобы отправить ещё раз, если «Поделиться» сорвалось.
 const INV = () => 'gym.invites@' + activeProfile(), INV_MAX = 10;
 export const localInvites = () => {const l = LS.get(INV()); return Array.isArray(l) ? l.filter(i => i && typeof i.code === 'string') : [];};
-export const rememberInvite = ({code, exp}) => LS.set(INV(), [{code, exp}, ...localInvites().filter(i => i.code !== code)].slice(0, INV_MAX));
+export const rememberInvite = ({code, exp, prog}) => LS.set(INV(), [{code, exp, ...(prog ? {prog} : {})}, ...localInvites().filter(i => i.code !== code)].slice(0, INV_MAX));
 export const forgetInvite = code => LS.set(INV(), localInvites().filter(i => i.code !== code));
 export function logout() {LS.del(KEY()); keyCache = null; emit();}
 

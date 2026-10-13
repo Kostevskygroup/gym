@@ -13,7 +13,7 @@ import {onFinishNav} from './views/finish.js';
 import {onPlanClose} from './views/plan.js';
 import {refreshCovers} from './views/covers.js';
 import {ymd} from './format.js';
-import {startAutoSync, syncNow, setPendingInvite} from './sync.js';
+import {startAutoSync, syncNow, setPendingInvite, setPendingProg} from './sync.js';
 import {stats, checkAch} from './stats.js';
 
 // Достижения по уже существующей истории (после переноса или восстановления) — без поздравлений.
@@ -92,8 +92,9 @@ function start() {
   // …/gym/?invite=ZAL-XXXX-XXXX — запоминаем код. Из адреса он уходит только после регистрации (sync.js):
   // так он переживает установку на экран «Домой», если iOS скопирует адрес в иконку.
   try {
-    const inv = new URL(location.href).searchParams.get('invite');
+    const q = new URL(location.href).searchParams, inv = q.get('invite'), prog = q.get('prog');
     if (inv) setPendingInvite(inv);
+    if (prog) setPendingProg(prog);
   } catch (e) {}
   bindGlobal();
   registerSW(apply => toast('Есть обновление приложения', {label: 'Обновить', run: apply}));

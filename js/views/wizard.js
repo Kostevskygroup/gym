@@ -5,6 +5,8 @@ import {GOALS, FOCUS, buildProgram} from '../builder.js';
 import {allEx, planOf} from '../program.js';
 import {JOINTS} from '../data/exercises.js';
 import {W} from '../data/program.js';
+import {TEMPLATES, templatePlan} from '../data/templates.js';
+import * as SY from '../sync.js';
 import {esc} from '../format.js';
 
 const chipRow = (id, opts, sel, multi) => `<div class="chipsel" id="${id}" data-multi="${multi ? 1 : 0}">${Object.entries(opts).map(([k, v]) => `<button type="button" class="${(multi ? sel.includes(k) : sel === k) ? 'on' : ''}" data-k="${esc(k)}">${esc(v)}</button>`).join('')}</div>`;
@@ -17,9 +19,11 @@ const NAME_MAX = 24;
 export function openWizard(mode, after) {
   const st = (mode === 'rebuild' && state.db.settings) || {};
   const askName = mode !== 'rebuild', first = mode === 'first';
-  const a = {goal: st.goal || 'general', days: String(st.days || 3), level: String(st.level || 1), pain: [...(st.pain || [])], focus: [...(st.focus || [])], src: 'auto'};
+  // программа из приглашения (…&prog=ksenia) выбрана заранее — её можно сменить
+  const given = mode !== 'rebuild' && TEMPLATES[SY.pendingProg()] ? 'tpl:' + SY.pendingProg() : 'auto';
+  const a = {goal: st.goal || 'general', days: String(st.days || 3), level: String(st.level || 1), pain: [...(st.pain || [])], focus: [...(st.focus || [])], src: given};
   const others = profiles().filter(p => p.id !== activeProfile() || mode === 'new').filter(() => !first);
-  const SRC = {auto: 'Собрать под меня', std: 'Стандартная программа', ...Object.fromEntries(others.map(p => ['copy:' + p.id, 'Как у «' + p.name + '»']))};
+  const SRC = {auto: 'Собрать под меня', std: 'Стандартная программа', ...Object.fromEntries(Object.entries(TEMPLATES).map(([k, t]) => ['tpl:' + k, t.n])), ...Object.fromEntries(others.map(p => ['copy:' + p.id, 'Как у «' + p.name + '»']))};
   const title = mode === 'new' ? 'Новый человек' : first ? 'Расскажи о себе' : 'Программа под меня';
   const cta = mode === 'new' ? 'Создать и открыть' : first ? 'Собрать мою программу' : 'Собрать программу';
   const html = `${sheetHead(title, first ? 'Шаг 1 из 2' : '', 'Ответы можно поменять потом в профиле')}<div class="sc wiz">
@@ -61,11 +65,13 @@ export function openWizard(mode, after) {
       let plan;
       if (src === 'std') plan = null;
       else if (src.startsWith('copy:')) plan = copiedPlan(src.slice(5));
+      else if (src.startsWith('tpl:')) plan = templatePlan(src.slice(4));
       else plan = buildProgram(ans, allEx(state.db));
       try {
         if (mode === 'new') addProfile(nm, ans);
         updDB(d => ({...d, plan: plan === undefined ? d.plan : plan, phase: 'p1', wo: Object.keys((plan || W).p1.w)[0], settings: {...d.settings, ...ans, ...(nm ? {name: nm} : {}), knee: ans.pain.includes('knee')}}));
       } catch (e) {toast(e.message); return;}
+      if (src.startsWith('tpl:')) SY.clearPendingProg();
       closeSheet();
       // сначала следующий экран, потом уведомление — чтобы оно поднялось над его кнопками
       after(mode === 'new');
